@@ -6,10 +6,10 @@ const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
 
 const GRUPO_ID = process.env.WHATSAPP_GROUP_ID;
+const TESTAR_AGORA = process.env.TESTAR_AGORA === 'true';
 const QTD_PRODUTOS = 5;
-const DELAY_ENTRE_MSGS = 4000; // 4s entre cada mensagem
+const DELAY_ENTRE_MSGS = 4000;
 
-// 7 disparos diários
 const HORARIOS = [
   '0 8 * * *',
   '0 10 * * *',
@@ -25,27 +25,24 @@ async function cicloEnvio() {
   console.log(`\n[${hora}] ▶ Iniciando ciclo de envio...`);
 
   if (!GRUPO_ID) {
-    console.error('❌ WHATSAPP_GROUP_ID não configurado. Veja os logs após conectar para obter o ID do grupo.');
+    console.error('❌ WHATSAPP_GROUP_ID não configurado.');
     return;
   }
 
   try {
-    // 1. Busca produtos
     const produtos = await buscarProdutos(30);
     if (!produtos.length) {
       console.log('⚠️  Nenhum produto retornado pela Shopee. Pulando ciclo.');
       return;
     }
 
-    // 2. Filtra já enviados
     let novos = filtrarNovos(produtos, QTD_PRODUTOS);
     if (!novos.length) {
-      console.log('♻️  Histórico esgotado — resetando e reusando produtos.');
+      console.log('♻️  Histórico esgotado — resetando.');
       resetarHistorico();
       novos = produtos.slice(0, QTD_PRODUTOS);
     }
 
-    // 3. Gera links de afiliado
     const comLinks = await Promise.all(
       novos.map(async (p) => ({
         ...p,
@@ -53,7 +50,6 @@ async function cicloEnvio() {
       }))
     );
 
-    // 4. Envia mensagem por mensagem (com delay)
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
       await enviarMensagem(GRUPO_ID, mensagem);
@@ -61,7 +57,6 @@ async function cicloEnvio() {
       await sleep(DELAY_ENTRE_MSGS);
     }
 
-    // 5. Marca como enviados
     marcarEnviados(comLinks);
     console.log(`✅ Ciclo concluído — ${comLinks.length} produtos enviados.\n`);
 
@@ -75,19 +70,22 @@ function sleep(ms) {
 }
 
 async function main() {
-  console.log('🤖 Shopee Bot v1.0 iniciando...');
+  console.log('🤖 Shopee Bot v1.1 iniciando...');
 
   await conectarWhatsApp();
 
-  // Agenda os jobs
   HORARIOS.forEach((cron) => {
     new CronJob(cron, cicloEnvio, null, true, 'America/Sao_Paulo');
   });
 
-  console.log('\n✅ Scheduler ativo. Disparos: 8h · 10h · 12h · 14h · 16h · 18h · 20h (horário SP)');
+  console.log('\n✅ Scheduler ativo. Disparos: 8h · 10h · 12h · 14h · 16h · 18h · 20h (SP)');
 
-  // Para testar imediatamente: descomente a linha abaixo
-  // await cicloEnvio();
+  // ── Modo teste: se TESTAR_AGORA=true, dispara um envio em 10s ─────────────
+  if (TESTAR_AGORA) {
+    console.log('\n🧪 MODO TESTE ATIVO — disparando envio em 10 segundos...');
+    console.log('   ⚠️  Lembre de remover TESTAR_AGORA depois do teste!\n');
+    setTimeout(() => cicloEnvio(), 10000);
+  }
 }
 
 main().catch((err) => {
