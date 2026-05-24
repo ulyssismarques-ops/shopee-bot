@@ -8,13 +8,10 @@ const CACHE_PATH = '/data/feed_cache.csv';
 const CACHE_META = '/data/feed_meta.json';
 const CACHE_TTL_HORAS = 6;
 
-// ─── Critérios mais permissivos ───────────────────────────────────────────────
-// Estratégia: produtos com bom desconto OU bem avaliados E baratos
 const MIN_AVALIACAO   = 4.0;
 const MIN_PRECO       = 5;
 const MAX_PRECO       = 300;
-const MIN_SHOP_RATING = 4.0;
-const DESCONTO_BOM    = 15; // produtos com 15%+ desconto têm prioridade
+const DESCONTO_BOM    = 15;
 
 async function baixarFeedStreaming() {
   if (!FEED_URL) throw new Error('SHOPEE_FEED_URL não configurada no Railway');
@@ -27,7 +24,7 @@ async function baixarFeedStreaming() {
   const inicio = Date.now();
 
   const resp = await axios.get(FEED_URL, {
-    timeout: 300000, // 5 minutos
+    timeout: 300000,
     responseType: 'stream',
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
@@ -88,26 +85,30 @@ function parsearFeedDeArquivo(filePath) {
 
   console.log(`📊 ${registros.length} linhas brutas no feed`);
 
-  // Log de DEBUG: mostra a 1ª linha pra ver os campos reais
   if (registros.length > 0) {
-    const sample = registros[0];
-    console.log('🔍 Campos detectados:', Object.keys(sample).slice(0, 15).join(', '));
-    console.log(`🔍 Amostra: title="${(sample.title || '').slice(0, 40)}..." price=${sample.price} sale_price=${sample.sale_price} discount=${sample.discount_percentage} rating=${sample.item_rating} shop=${sample.shop_rating}`);
+    const s = registros[0];
+    console.log('🔍 TODAS as chaves:', JSON.stringify(Object.keys(s)));
+    console.log('🔍 Primeira linha completa:', JSON.stringify(s).slice(0, 600));
   }
 
   const parsed = registros.map(parsearLinha).filter(Boolean);
   console.log(`✅ ${parsed.length} produtos parseados com sucesso`);
+
+  // Mostra amostra do produto JÁ PARSEADO
+  if (parsed.length > 0) {
+    console.log('🔍 Primeiro produto parseado:', JSON.stringify(parsed[0]).slice(0, 400));
+  }
+
   return parsed;
 }
 
 function parsearLinha(r) {
-  // Shopee pode usar tanto "product_short link" (com espaço) quanto "product_short_link"
   const link = r.product_short_link || r['product_short link'] || r.product_link;
-  const preco       = parseFloat((r.sale_price || r.price || '0').toString().replace(',', '.'));
-  const precoOrig   = parseFloat((r.price || '0').toString().replace(',', '.'));
+  const preco       = parseFloat(String(r.sale_price || r.price || '0').replace(',', '.'));
+  const precoOrig   = parseFloat(String(r.price || '0').replace(',', '.'));
   const desconto    = parseInt(r.discount_percentage || '0', 10);
-  const avaliacao   = parseFloat((r.item_rating || '0').toString().replace(',', '.'));
-  const shopRating  = parseFloat((r.shop_rating || '0').toString().replace(',', '.'));
+  const avaliacao   = parseFloat(String(r.item_rating || '0').replace(',', '.'));
+  const shopRating  = parseFloat(String(r.shop_rating || '0').replace(',', '.'));
 
   if (!link || !r.title || preco <= 0) return null;
 
@@ -127,26 +128,33 @@ function parsearLinha(r) {
 }
 
 function filtrarQualidade(produtos) {
-  // Filtros básicos (todos devem passar)
+  // Conta quantos passam em CADA filtro individualmente (debug)
+  const c = {
+    nota:      produtos.filter(p => p.avaliacao >= MIN_AVALIACAO).length,
+    preco:     produtos.filter(p => p.precoAtual >= MIN_PRECO && p.precoAtual <= MAX_PRECO).length,
+    nome:      produtos.filter(p => p.nome && p.nome.length >= 10).length,
+  };
+  console.log(`   📈 Por filtro individual:`);
+  console.log(`      • Nota ≥ ${MIN_AVALIACAO}:           ${c.nota}`);
+  console.log(`      • Preço R$${MIN_PRECO}-${MAX_PRECO}:       ${c.preco}`);
+  console.log(`      • Nome ≥ 10 caracteres:    ${c.nome}`);
+
   const base = produtos.filter(p =>
     p.avaliacao   >= MIN_AVALIACAO &&
-    p.shopRating  >= MIN_SHOP_RATING &&
     p.precoAtual  >= MIN_PRECO &&
     p.precoAtual  <= MAX_PRECO &&
     p.nome &&
     p.nome.length >= 10
   );
 
-  console.log(`   • ${base.length} passaram nos filtros básicos (preço R$${MIN_PRECO}-${MAX_PRECO}, nota ≥${MIN_AVALIACAO}, loja ≥${MIN_SHOP_RATING})`);
+  console.log(`   ✓ Combinado: ${base.length} produtos`);
 
-  // Prioridade: tem desconto bom? Vai pro topo
   const comDesconto = base.filter(p => p.desconto >= DESCONTO_BOM);
   const semDesconto = base.filter(p => p.desconto < DESCONTO_BOM);
 
-  console.log(`   • ${comDesconto.length} com desconto ≥${DESCONTO_BOM}%`);
-  console.log(`   • ${semDesconto.length} sem desconto significativo (fallback)`);
+  console.log(`   • Com desconto ≥${DESCONTO_BOM}%: ${comDesconto.length}`);
+  console.log(`   • Sem desconto:           ${semDesconto.length}`);
 
-  // Embaralha cada grupo separadamente
   const emba = (arr) => {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -156,7 +164,6 @@ function filtrarQualidade(produtos) {
     return a;
   };
 
-  // Retorna primeiro os com desconto, depois os sem
   return [...emba(comDesconto), ...emba(semDesconto)];
 }
 
@@ -165,7 +172,7 @@ async function buscarProdutos(limite = 30) {
     const filePath = await obterFeed();
     const todos = parsearFeedDeArquivo(filePath);
 
-    console.log('🔎 Aplicando filtros de qualidade:');
+    console.log('🔎 Aplicando filtros:');
     const filtrados = filtrarQualidade(todos);
     console.log(`✨ ${filtrados.length} produtos no funil final`);
 
