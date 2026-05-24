@@ -12,11 +12,9 @@ const DELAY_ENTRE_MSGS = 4000;
 
 const HORARIOS = [
   '0 8 * * *',
-  '0 10 * * *',
-  '0 12 * * *',
+  '0 11 * * *',
   '0 14 * * *',
-  '0 16 * * *',
-  '0 18 * * *',
+  '0 17 * * *',
   '0 20 * * *',
 ];
 
@@ -81,7 +79,7 @@ async function main() {
     new CronJob(cron, cicloEnvio, null, true, 'America/Sao_Paulo');
   });
 
-  console.log('\n✅ Scheduler ativo. Disparos: 8h · 10h · 12h · 14h · 16h · 18h · 20h (SP)');
+  console.log('\n✅ Scheduler ativo. Disparos: 8h · 11h · 14h · 17h · 20h (SP)');
 
   if (TESTAR_AGORA) {
     console.log('\n🧪 MODO TESTE ATIVO — disparando envio em 10 segundos...');
