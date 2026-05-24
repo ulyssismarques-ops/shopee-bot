@@ -184,7 +184,45 @@ async function buscarProdutos(limite = 30) {
 }
 
 async function gerarLinkAfiliado(urlOriginal, linkPronto) {
-  return linkPronto || urlOriginal;
+  const link = linkPronto || urlOriginal;
+
+  // Se já é um link curto bonito, retorna direto
+  if (link.match(/shope\.ee\/[a-zA-Z0-9]+$/)) return link;
+
+  // Se é o redirect feio, tenta resolver pro curto
+  if (link.includes('shope.ee/an_redir')) {
+    try {
+      const resolvido = await resolverLinkCurto(link);
+      if (resolvido) return resolvido;
+    } catch {}
+  }
+
+  return link;
+}
+
+/**
+ * Segue o redirect do shope.ee/an_redir até pegar o link curto final
+ * Faz HEAD request manual sem seguir redirects pra capturar o Location header
+ */
+async function resolverLinkCurto(linkRedirect) {
+  try {
+    const resp = await axios.head(linkRedirect, {
+      maxRedirects: 0,
+      timeout: 5000,
+      validateStatus: (s) => s >= 200 && s < 400,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+      },
+    });
+    return resp.headers?.location || null;
+  } catch (err) {
+    // 3xx vem como erro no axios — captura o Location daí
+    const loc = err.response?.headers?.location;
+    if (loc && loc.match(/shope\.ee\/[a-zA-Z0-9]+/)) {
+      return loc;
+    }
+    return null;
+  }
 }
 
 module.exports = { buscarProdutos, gerarLinkAfiliado };
