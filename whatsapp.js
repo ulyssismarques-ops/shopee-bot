@@ -103,6 +103,41 @@ async function enviarMensagem(grupoId, texto) {
   await sock.sendMessage(grupoId, { text: texto });
 }
 
+/**
+ * Envia uma imagem (baixada da URL) com legenda.
+ * Se a imagem falhar, faz fallback para mensagem só de texto.
+ */
+async function enviarImagemComLegenda(grupoId, imageUrl, legenda) {
+  if (!sock || !isConnected) {
+    throw new Error('WhatsApp não está conectado');
+  }
+
+  try {
+    // Baixa a imagem como buffer
+    const axios = require('axios');
+    const resp = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+        'Referer': 'https://shopee.com.br/',
+      },
+      maxContentLength: 10 * 1024 * 1024, // 10MB
+    });
+
+    const buffer = Buffer.from(resp.data);
+    await sock.sendMessage(grupoId, {
+      image: buffer,
+      caption: legenda,
+    });
+    return true;
+  } catch (err) {
+    console.warn(`  ⚠️  Falha ao enviar imagem (${err.message}) — enviando só texto`);
+    await sock.sendMessage(grupoId, { text: legenda });
+    return false;
+  }
+}
+
 async function listarGrupos() {
   try {
     const grupos = await sock.groupFetchAllParticipating();
@@ -124,4 +159,4 @@ async function listarGrupos() {
   }
 }
 
-module.exports = { conectarWhatsApp, enviarMensagem, listarGrupos };
+module.exports = { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, listarGrupos };
