@@ -1,7 +1,7 @@
 {
   "name": "shopee-bot-rosana",
-  "version": "1.1.0",
-  "description": "Bot afiliada Shopee → WhatsApp (Baileys)",
+  "version": "2.0.0",
+  "description": "Bot afiliada Shopee → WhatsApp (Baileys + Feed CSV)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,12 +10,11 @@
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^6.7.22",
     "axios": "^1.7.2",
-    "axios-cookiejar-support": "^5.0.2",
     "cron": "^3.1.7",
+    "csv-parse": "^5.5.6",
     "dotenv": "^16.4.5",
     "pino": "^9.3.2",
-    "qrcode-terminal": "^0.12.0",
-    "tough-cookie": "^4.1.4"
+    "qrcode-terminal": "^0.12.0"
   },
   "engines": {
     "node": ">=20.0.0"
