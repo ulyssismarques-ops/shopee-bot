@@ -18,7 +18,6 @@ async function conectarWhatsApp() {
 }
 
 async function iniciarSocket() {
-  // Garante diretório de sessão
   if (!fs.existsSync(AUTH_PATH)) {
     fs.mkdirSync(AUTH_PATH, { recursive: true });
   }
@@ -30,7 +29,7 @@ async function iniciarSocket() {
     const result = await fetchLatestBaileysVersion();
     version = result.version;
   } catch {
-    version = [2, 3000, 1017531287]; // fallback
+    version = [2, 3000, 1017531287];
   }
 
   sock = makeWASocket({
@@ -47,21 +46,32 @@ async function iniciarSocket() {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // QR code → imprime no terminal/logs do Railway
     if (qr) {
-      console.log('\n' + '═'.repeat(60));
-      console.log('📱  ESCANEIE O QR CODE COM O WHATSAPP DA ROSANA');
-      console.log('   (WhatsApp → Dispositivos conectados → Conectar dispositivo)');
-      console.log('═'.repeat(60) + '\n');
+      // 1) URL pra renderizar QR como IMAGEM grande no navegador
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=20&data=${encodeURIComponent(qr)}`;
+
+      console.log('\n' + '█'.repeat(70));
+      console.log('📱  ESCANEIE O QR CODE — DUAS OPÇÕES:');
+      console.log('█'.repeat(70));
+      console.log('\n✨ OPÇÃO 1 (recomendada): abra esta URL no navegador');
+      console.log('   ' + qrUrl);
+      console.log('\n   → vai aparecer um QR grande');
+      console.log('   → escaneie com o WhatsApp da Rosana');
+      console.log('     (WhatsApp → ⋮ → Aparelhos conectados → Conectar aparelho)');
+      console.log('\n' + '─'.repeat(70));
+      console.log('✨ OPÇÃO 2: tente escanear direto desta tela (abaixo):');
+      console.log('─'.repeat(70) + '\n');
+
+      // 2) QR ASCII pequeno (caso a opção 1 não funcione por algum motivo)
       qrcode.generate(qr, { small: true });
-      console.log('\n' + '═'.repeat(60) + '\n');
+
+      console.log('\n' + '█'.repeat(70) + '\n');
     }
 
     if (connection === 'open') {
       isConnected = true;
       console.log('✅  WhatsApp conectado!\n');
 
-      // Lista grupos nos logs (para pegar o ID)
       setTimeout(async () => {
         await listarGrupos();
         if (initialResolve) {
