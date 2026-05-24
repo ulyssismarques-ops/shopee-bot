@@ -37,7 +37,7 @@ async function iniciarSocket() {
     auth: state,
     logger: pino({ level: 'silent' }),
     browser: ['ShopeeBot', 'Chrome', '120.0.0'],
-    generateHighQualityLinkPreview: false,
+    generateHighQualityLinkPreview: true,
     connectTimeoutMs: 60_000,
   });
 
