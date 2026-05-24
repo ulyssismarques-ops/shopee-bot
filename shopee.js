@@ -186,43 +186,33 @@ async function buscarProdutos(limite = 30) {
 async function gerarLinkAfiliado(urlOriginal, linkPronto) {
   const link = linkPronto || urlOriginal;
 
-  // Se já é um link curto bonito, retorna direto
-  if (link.match(/shope\.ee\/[a-zA-Z0-9]+$/)) return link;
+  // Se já é shope.ee curto, retorna direto
+  if (link.match(/shope\.ee\/[a-zA-Z0-9]{5,15}$/)) return link;
 
-  // Se é o redirect feio, tenta resolver pro curto
-  if (link.includes('shope.ee/an_redir')) {
-    try {
-      const resolvido = await resolverLinkCurto(link);
-      if (resolvido) return resolvido;
-    } catch {}
+  // Encurta via TinyURL (WhatsApp consegue gerar preview de links TinyURL)
+  try {
+    const curto = await encurtarTinyURL(link);
+    if (curto) return curto;
+  } catch (err) {
+    console.warn('  ⚠️  Encurtador falhou:', err.message);
   }
 
   return link;
 }
 
 /**
- * Segue o redirect do shope.ee/an_redir até pegar o link curto final
- * Faz HEAD request manual sem seguir redirects pra capturar o Location header
+ * Encurta uma URL usando TinyURL (API pública, sem autenticação)
+ * O WhatsApp consegue gerar preview de links tinyurl.com — diferente de shopee.com.br
+ * que é bloqueado pelo anti-bot da Shopee
  */
-async function resolverLinkCurto(linkRedirect) {
-  try {
-    const resp = await axios.head(linkRedirect, {
-      maxRedirects: 0,
-      timeout: 5000,
-      validateStatus: (s) => s >= 200 && s < 400,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
-      },
-    });
-    return resp.headers?.location || null;
-  } catch (err) {
-    // 3xx vem como erro no axios — captura o Location daí
-    const loc = err.response?.headers?.location;
-    if (loc && loc.match(/shope\.ee\/[a-zA-Z0-9]+/)) {
-      return loc;
-    }
-    return null;
-  }
+async function encurtarTinyURL(url) {
+  const resp = await axios.get('https://tinyurl.com/api-create.php', {
+    params: { url },
+    timeout: 6000,
+  });
+  const curto = (resp.data || '').toString().trim();
+  if (curto.startsWith('http')) return curto;
+  return null;
 }
 
 module.exports = { buscarProdutos, gerarLinkAfiliado };
