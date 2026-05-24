@@ -123,6 +123,7 @@ function parsearLinha(r) {
     vendidos:      0,
     url:           r.product_link,
     linkAfiliado:  link,
+    imagem:        r.image_link || r.image_link_3 || null,
     categoria1:    r.global_category1,
   };
 }
