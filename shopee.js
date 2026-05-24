@@ -1,238 +1,150 @@
 const axios = require('axios');
-const { CookieJar } = require('tough-cookie');
-const { wrapper } = require('axios-cookiejar-support');
+const { parse } = require('csv-parse/sync');
+const fs = require('fs');
+const path = require('path');
 
-// ─── Credenciais (Railway env vars) ──────────────────────────────────────────
-const USERNAME = process.env.SHOPEE_USERNAME || '';
-const PASSWORD = process.env.SHOPEE_PASSWORD || '';
-const AF_ID    = process.env.SHOPEE_AF_ID    || '';
+// ─── URL do feed (vem das variáveis do Railway) ──────────────────────────────
+const FEED_URL = process.env.SHOPEE_FEED_URL || '';
 
-// ─── Endpoints ───────────────────────────────────────────────────────────────
-const AFFILIATE_BASE = 'https://affiliate.shopee.com.br';
-const SHOPEE_BASE    = 'https://shopee.com.br';
+// ─── Cache local do feed (evita baixar várias vezes no mesmo dia) ────────────
+const CACHE_PATH = '/data/feed_cache.csv';
+const CACHE_META = '/data/feed_meta.json';
+const CACHE_TTL_HORAS = 6; // baixa novamente após 6h
 
-// ─── Cliente HTTP com cookies (essencial para o anti-bot) ─────────────────────
-const jar = new CookieJar();
-const http = wrapper(axios.create({
-  jar,
-  withCredentials: true,
-  timeout: 15000,
-  validateStatus: (s) => s < 500, // não joga erro em 403, queremos tratar
-}));
+// ─── Critérios mínimos de qualidade ───────────────────────────────────────────
+const MIN_DESCONTO    = 10;   // só produtos com 10%+ off
+const MIN_AVALIACAO   = 4.3;  // só com nota ≥ 4.3
+const MIN_PRECO       = 5;    // ignora produtos suspeitos (centavos)
+const MAX_PRECO       = 500;  // foco em ticket médio do grupo (achadinhos)
 
-const HEADERS = {
-  'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  'Accept':          'application/json',
-  'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-  'Referer':         'https://shopee.com.br/',
-  'Origin':          'https://shopee.com.br',
-  'X-Requested-With':'XMLHttpRequest',
-  'X-Shopee-Language':'pt-BR',
-  'sec-ch-ua':       '"Chromium";v="121", "Not A(Brand";v="99", "Google Chrome";v="121"',
-  'sec-ch-ua-mobile':'?0',
-  'sec-ch-ua-platform':'"Windows"',
-  'sec-fetch-dest':  'empty',
-  'sec-fetch-mode':  'cors',
-  'sec-fetch-site':  'same-origin',
-};
-
-// ─── Aquece cookies (visita home + categoria antes de bater na API) ──────────
-let cookiesAquecidos = false;
-async function aquecerCookies() {
-  if (cookiesAquecidos) return;
-
+async function baixarFeed() {
+  // Verifica cache
   try {
-    await http.get(SHOPEE_BASE + '/', { headers: HEADERS });
-    await http.get(SHOPEE_BASE + '/api/v4/pages/get_homepage_category_list', { headers: HEADERS });
-    cookiesAquecidos = true;
-    console.log('🍪 Cookies Shopee aquecidos');
+    if (fs.existsSync(CACHE_PATH) && fs.existsSync(CACHE_META)) {
+      const meta = JSON.parse(fs.readFileSync(CACHE_META, 'utf8'));
+      const idadeHoras = (Date.now() - meta.baixadoEm) / (1000 * 60 * 60);
+      if (idadeHoras < CACHE_TTL_HORAS) {
+        console.log(`📂 Usando feed em cache (${idadeHoras.toFixed(1)}h de idade)`);
+        return fs.readFileSync(CACHE_PATH, 'utf8');
+      }
+    }
+  } catch {}
+
+  // Baixa fresco
+  if (!FEED_URL) {
+    throw new Error('SHOPEE_FEED_URL não configurada nas variáveis do Railway');
+  }
+
+  console.log('⬇️  Baixando feed da Shopee...');
+  const resp = await axios.get(FEED_URL, {
+    timeout: 60000,
+    responseType: 'text',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+    },
+    maxContentLength: 100 * 1024 * 1024, // até 100MB
+  });
+
+  const csv = resp.data;
+
+  // Salva no cache
+  try {
+    const dir = path.dirname(CACHE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CACHE_PATH, csv);
+    fs.writeFileSync(CACHE_META, JSON.stringify({ baixadoEm: Date.now() }));
   } catch (err) {
-    console.warn('Aviso: aquecimento de cookies falhou:', err.message);
+    console.warn('Aviso: não foi possível salvar cache:', err.message);
   }
+
+  console.log(`✅ Feed baixado: ${(csv.length / 1024 / 1024).toFixed(1)}MB`);
+  return csv;
 }
 
-// ─── Cache de sessão afiliada ────────────────────────────────────────────────
-let cachedToken  = null;
-let tokenExpiry  = 0;
+function parsearFeed(csv) {
+  let registros;
+  try {
+    registros = parse(csv, {
+      columns: true,
+      skip_empty_lines: true,
+      relax_quotes: true,
+      relax_column_count: true,
+      trim: true,
+    });
+  } catch (err) {
+    console.error('Erro parseando CSV:', err.message);
+    return [];
+  }
 
-async function getToken() {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+  return registros.map(parsearLinha).filter(Boolean);
+}
 
-  const resp = await http.post(
-    `${AFFILIATE_BASE}/api/v2/account/login`,
-    { username: USERNAME, password: PASSWORD },
-    { headers: { ...HEADERS, Referer: AFFILIATE_BASE + '/', Origin: AFFILIATE_BASE, 'Content-Type': 'application/json' } }
+function parsearLinha(r) {
+  const preco       = parseFloat(r.sale_price || r.price || '0');
+  const precoOrig   = parseFloat(r.price || '0');
+  const desconto    = parseInt(r.discount_percentage || '0', 10);
+  const avaliacao   = parseFloat(r.item_rating || '0');
+  const shopRating  = parseFloat(r.shop_rating || '0');
+  const link        = r.product_short_link || r.product_link;
+
+  if (!link || !r.title || preco <= 0) return null;
+
+  return {
+    id:            r.itemid,
+    nome:          r.title.trim(),
+    precoAtual:    preco,
+    precoOriginal: precoOrig > preco ? precoOrig : null,
+    desconto,
+    avaliacao,
+    shopRating,
+    vendidos:      0, // não vem no feed
+    url:           r.product_link,
+    linkAfiliado:  link,  // já vem pronto!
+    categoria1:    r.global_category1,
+    categoria2:    r.global_category2,
+  };
+}
+
+function filtrarQualidade(produtos) {
+  return produtos.filter(p =>
+    p.desconto    >= MIN_DESCONTO &&
+    p.avaliacao   >= MIN_AVALIACAO &&
+    p.precoAtual  >= MIN_PRECO &&
+    p.precoAtual  <= MAX_PRECO &&
+    p.shopRating  >= 4.5
   );
+}
 
-  const data  = resp.data?.data || resp.data || {};
-  const token = data.token || data.access_token || data.jwt || data.session_token;
-
-  if (!token) {
-    console.error('Login afiliado: resposta sem token:', JSON.stringify(resp.data).slice(0, 200));
-    throw new Error('Token não encontrado');
+// Embaralha array (variedade nos envios)
+function embaralhar(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-
-  cachedToken = token;
-  tokenExpiry = Date.now() + 3 * 60 * 60 * 1000; // 3h
-  console.log('🔑 Login afiliado Shopee OK');
-  return token;
+  return a;
 }
-
-// ─── Gerar link de afiliado ───────────────────────────────────────────────────
-async function gerarLinkAfiliado(urlOriginal) {
-  if (USERNAME && PASSWORD) {
-    try { return await gerarLinkPortal(urlOriginal); }
-    catch (err) { console.warn('⚠️  Link portal falhou:', err.message); }
-  }
-  if (AF_ID) return `${urlOriginal}?af_id=${AF_ID}&channel_id=0`;
-  return urlOriginal;
-}
-
-async function gerarLinkPortal(urlOriginal) {
-  const token = await getToken();
-  const resp = await http.post(
-    `${AFFILIATE_BASE}/api/v2/link/generate`,
-    { origin_url: urlOriginal, channel_id: '0' },
-    { headers: { ...HEADERS, Authorization: `Bearer ${token}`, Referer: AFFILIATE_BASE + '/', Origin: AFFILIATE_BASE, 'Content-Type': 'application/json' } }
-  );
-  const data = resp.data?.data || resp.data || {};
-  const link = data.short_link || data.shortLink || data.link || data.url;
-  if (!link) throw new Error('Sem short_link: ' + JSON.stringify(data).slice(0, 150));
-  return link;
-}
-
-// ─── Busca de produtos — múltiplas estratégias ───────────────────────────────
-const KEYWORDS = [
-  'kit', 'combo', 'camiseta', 'shorts', 'tênis', 'fone', 'carregador',
-  'ventilador', 'panela', 'mochila', 'relógio', 'perfume',
-  'meia', 'chinelo', 'top', 'blusinha', 'saia', 'moletom', 'legging',
-];
-let kwIdx = 0;
 
 async function buscarProdutos(limite = 30) {
-  await aquecerCookies();
-
-  // Estratégia 1: API de recomendação (menos agressiva)
   try {
-    const recs = await buscarRecommend(limite);
-    if (recs.length >= 5) {
-      console.log(`🛍️  ${recs.length} produtos (Recommend)`);
-      return recs;
-    }
-  } catch (err) {
-    console.warn('Recommend falhou:', err.response?.status || err.message);
-  }
+    const csv = await baixarFeed();
+    const todos = parsearFeed(csv);
+    console.log(`📊 ${todos.length} produtos no feed`);
 
-  // Estratégia 2: Flash sale
-  try {
-    const flash = await buscarFlashSale(limite);
-    if (flash.length >= 5) {
-      console.log(`🛍️  ${flash.length} produtos (Flash Sale)`);
-      return flash;
-    }
-  } catch (err) {
-    console.warn('Flash sale falhou:', err.response?.status || err.message);
-  }
+    const filtrados = filtrarQualidade(todos);
+    console.log(`✨ ${filtrados.length} produtos passaram nos critérios (desconto ≥${MIN_DESCONTO}%, nota ≥${MIN_AVALIACAO}, R$ ${MIN_PRECO}-${MAX_PRECO})`);
 
-  // Estratégia 3: Busca por keyword
-  try {
-    const prods = await buscarPorKeyword(limite);
-    console.log(`🛍️  ${prods.length} produtos (busca)`);
-    return prods;
+    const embaralhados = embaralhar(filtrados);
+    return embaralhados.slice(0, limite);
   } catch (err) {
-    console.error('Busca falhou:', err.response?.status || err.message);
+    console.error('❌ Erro ao buscar produtos:', err.message);
     return [];
   }
 }
 
-async function buscarRecommend(limite) {
-  const resp = await http.get(`${SHOPEE_BASE}/api/v4/recommend/recommend`, {
-    params: {
-      bundle: 'daily_discover_main',
-      item_card: 2,
-      limit: limite,
-      offset: Math.floor(Math.random() * 100),
-    },
-    headers: HEADERS,
-  });
-
-  if (resp.status === 403) throw new Error('403 Forbidden');
-  const sections = resp.data?.data?.sections || [];
-  const items = sections.flatMap(s => s.data?.item || []);
-  return items.map(parseItem).filter(validar);
-}
-
-async function buscarPorKeyword(limite) {
-  const keyword = KEYWORDS[kwIdx % KEYWORDS.length];
-  kwIdx++;
-
-  const resp = await http.get(`${SHOPEE_BASE}/api/v4/search/search_items`, {
-    params: {
-      by: 'sales', order: 'desc', limit: limite, newest: 0,
-      keyword, page_type: 'search',
-      scenario: 'PAGE_GLOBAL_SEARCH', version: 2,
-    },
-    headers: HEADERS,
-  });
-
-  if (resp.status === 403) throw new Error('403 Forbidden');
-  return (resp.data?.items || []).map(parseItem).filter(validar);
-}
-
-async function buscarFlashSale(limite) {
-  const sessoes = await http.get(`${SHOPEE_BASE}/api/v4/flash_sale/get_all_sessions`, { headers: HEADERS });
-  if (sessoes.status === 403) throw new Error('403 Forbidden');
-
-  const ativa = (sessoes.data?.data?.sessions || []).find((s) => s.status === 1);
-  if (!ativa) return [];
-
-  const resp = await http.get(`${SHOPEE_BASE}/api/v4/flash_sale/flash_sale_batch_get_items`, {
-    params: { batchid: ativa.batchid, limit: limite, offset: 0 },
-    headers: HEADERS,
-  });
-  if (resp.status === 403) throw new Error('403 Forbidden');
-
-  return (resp.data?.data?.items || []).map(parseFlashItem).filter(validar);
-}
-
-// ─── Parsers (lidam com formatos diferentes de cada API) ─────────────────────
-function parseItem(item) {
-  const i = item.item_basic || item;
-  const shopId = i.shopid;
-  const itemId = i.itemid;
-  const preco  = (i.price || i.price_min || 0) / 100000;
-  const orig   = (i.price_before_discount || i.price_max_before_discount || 0) / 100000;
-
-  return {
-    id:           `${shopId}_${itemId}`,
-    nome:         i.name,
-    precoAtual:   preco,
-    precoOriginal: orig > preco ? orig : null,
-    desconto:     orig > preco ? Math.round(((orig - preco) / orig) * 100) : 0,
-    vendidos:     i.sold || 0,
-    avaliacao:    Number(i.item_rating?.rating_star || 0).toFixed(1),
-    url:          `https://shopee.com.br/product/${shopId}/${itemId}`,
-  };
-}
-
-function parseFlashItem(item) {
-  const preco = (item.price || 0) / 100000;
-  const orig  = (item.price_before_discount || 0) / 100000;
-  return {
-    id:           `${item.shopid}_${item.itemid}`,
-    nome:         item.name,
-    precoAtual:   preco,
-    precoOriginal: orig > preco ? orig : null,
-    desconto:     orig > preco ? Math.round(((orig - preco) / orig) * 100) : 0,
-    vendidos:     item.sold || 0,
-    avaliacao:    Number(item.item_rating?.rating_star || 0).toFixed(1),
-    url:          `https://shopee.com.br/product/${item.shopid}/${item.itemid}`,
-    flashSale:    true,
-  };
-}
-
-function validar(p) {
-  return p && p.precoAtual > 0 && p.nome?.length > 3;
+// Link já vem pronto no feed — função existe só pra manter compatibilidade com index.js
+async function gerarLinkAfiliado(urlOriginal, linkPronto) {
+  return linkPronto || urlOriginal;
 }
 
 module.exports = { buscarProdutos, gerarLinkAfiliado };
