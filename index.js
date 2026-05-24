@@ -43,11 +43,11 @@ async function cicloEnvio() {
       novos = produtos.slice(0, QTD_PRODUTOS);
     }
 
-    // Garante linkAfiliado mesmo no caso de produto sem ele
-    const comLinks = novos.map(p => ({
+    // Resolve cada link feio para a versão curta (shope.ee/XXXX) — habilita preview no WhatsApp
+    const comLinks = await Promise.all(novos.map(async (p) => ({
       ...p,
-      linkAfiliado: p.linkAfiliado || p.url,
-    }));
+      linkAfiliado: await gerarLinkAfiliado(p.url, p.linkAfiliado),
+    })));
 
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
