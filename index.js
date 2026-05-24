@@ -5,9 +5,9 @@ const { buscarProdutos, gerarLinkAfiliado } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
 
-const GRUPO_ID = process.env.WHATSAPP_GROUP_ID;
-const TESTAR_AGORA = process.env.TESTAR_AGORA === 'true';
-const QTD_PRODUTOS = 5;
+const GRUPO_ID       = process.env.WHATSAPP_GROUP_ID;
+const TESTAR_AGORA   = process.env.TESTAR_AGORA === 'true';
+const QTD_PRODUTOS   = 5;
 const DELAY_ENTRE_MSGS = 4000;
 
 const HORARIOS = [
@@ -30,9 +30,9 @@ async function cicloEnvio() {
   }
 
   try {
-    const produtos = await buscarProdutos(30);
+    const produtos = await buscarProdutos(50);
     if (!produtos.length) {
-      console.log('⚠️  Nenhum produto retornado pela Shopee. Pulando ciclo.');
+      console.log('⚠️  Nenhum produto disponível. Pulando ciclo.');
       return;
     }
 
@@ -43,12 +43,11 @@ async function cicloEnvio() {
       novos = produtos.slice(0, QTD_PRODUTOS);
     }
 
-    const comLinks = await Promise.all(
-      novos.map(async (p) => ({
-        ...p,
-        linkAfiliado: await gerarLinkAfiliado(p.url),
-      }))
-    );
+    // Garante linkAfiliado mesmo no caso de produto sem ele
+    const comLinks = novos.map(p => ({
+      ...p,
+      linkAfiliado: p.linkAfiliado || p.url,
+    }));
 
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
@@ -70,7 +69,7 @@ function sleep(ms) {
 }
 
 async function main() {
-  console.log('🤖 Shopee Bot v1.1 iniciando...');
+  console.log('🤖 Shopee Bot v2.0 iniciando (modo feed)...');
 
   await conectarWhatsApp();
 
@@ -80,7 +79,6 @@ async function main() {
 
   console.log('\n✅ Scheduler ativo. Disparos: 8h · 10h · 12h · 14h · 16h · 18h · 20h (SP)');
 
-  // ── Modo teste: se TESTAR_AGORA=true, dispara um envio em 10s ─────────────
   if (TESTAR_AGORA) {
     console.log('\n🧪 MODO TESTE ATIVO — disparando envio em 10 segundos...');
     console.log('   ⚠️  Lembre de remover TESTAR_AGORA depois do teste!\n');
