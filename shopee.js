@@ -3,65 +3,92 @@ const { parse } = require('csv-parse/sync');
 const fs = require('fs');
 const path = require('path');
 
-// ─── URL do feed (vem das variáveis do Railway) ──────────────────────────────
+// ─── URL do feed ─────────────────────────────────────────────────────────────
 const FEED_URL = process.env.SHOPEE_FEED_URL || '';
 
-// ─── Cache local do feed (evita baixar várias vezes no mesmo dia) ────────────
+// ─── Cache local ─────────────────────────────────────────────────────────────
 const CACHE_PATH = '/data/feed_cache.csv';
 const CACHE_META = '/data/feed_meta.json';
-const CACHE_TTL_HORAS = 6; // baixa novamente após 6h
+const CACHE_TTL_HORAS = 6;
 
-// ─── Critérios mínimos de qualidade ───────────────────────────────────────────
-const MIN_DESCONTO    = 10;   // só produtos com 10%+ off
-const MIN_AVALIACAO   = 4.3;  // só com nota ≥ 4.3
-const MIN_PRECO       = 5;    // ignora produtos suspeitos (centavos)
-const MAX_PRECO       = 500;  // foco em ticket médio do grupo (achadinhos)
+// ─── Critérios de qualidade ───────────────────────────────────────────────────
+const MIN_DESCONTO    = 10;
+const MIN_AVALIACAO   = 4.3;
+const MIN_PRECO       = 5;
+const MAX_PRECO       = 500;
+const MIN_SHOP_RATING = 4.5;
 
-async function baixarFeed() {
-  // Verifica cache
+/**
+ * Baixa o feed via STREAMING e salva direto em disco.
+ * Evita carregar tudo na memória de uma vez (feed pode ter centenas de MB).
+ */
+async function baixarFeedStreaming() {
+  if (!FEED_URL) {
+    throw new Error('SHOPEE_FEED_URL não configurada no Railway');
+  }
+
+  // Garante diretório
+  const dir = path.dirname(CACHE_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  // Arquivo temporário (caso baixe parcial e falhe)
+  const tmpPath = CACHE_PATH + '.tmp';
+
+  console.log('⬇️  Baixando feed da Shopee (streaming)...');
+  const inicio = Date.now();
+
+  const resp = await axios.get(FEED_URL, {
+    timeout: 180000, // 3 minutos
+    responseType: 'stream',
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+    },
+  });
+
+  // Pipe da resposta direto pro arquivo (não carrega na RAM)
+  const writer = fs.createWriteStream(tmpPath);
+  resp.data.pipe(writer);
+
+  await new Promise((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+    resp.data.on('error', reject);
+  });
+
+  // Move tmp → final
+  fs.renameSync(tmpPath, CACHE_PATH);
+  fs.writeFileSync(CACHE_META, JSON.stringify({ baixadoEm: Date.now() }));
+
+  const tamanho = fs.statSync(CACHE_PATH).size;
+  const segundos = ((Date.now() - inicio) / 1000).toFixed(1);
+  console.log(`✅ Feed baixado: ${(tamanho / 1024 / 1024).toFixed(1)}MB em ${segundos}s`);
+}
+
+async function obterFeed() {
+  // Tenta cache
   try {
     if (fs.existsSync(CACHE_PATH) && fs.existsSync(CACHE_META)) {
       const meta = JSON.parse(fs.readFileSync(CACHE_META, 'utf8'));
       const idadeHoras = (Date.now() - meta.baixadoEm) / (1000 * 60 * 60);
       if (idadeHoras < CACHE_TTL_HORAS) {
-        console.log(`📂 Usando feed em cache (${idadeHoras.toFixed(1)}h de idade)`);
-        return fs.readFileSync(CACHE_PATH, 'utf8');
+        const tamanho = fs.statSync(CACHE_PATH).size;
+        console.log(`📂 Usando feed em cache (${idadeHoras.toFixed(1)}h, ${(tamanho/1024/1024).toFixed(1)}MB)`);
+        return CACHE_PATH;
       }
     }
   } catch {}
 
   // Baixa fresco
-  if (!FEED_URL) {
-    throw new Error('SHOPEE_FEED_URL não configurada nas variáveis do Railway');
-  }
-
-  console.log('⬇️  Baixando feed da Shopee...');
-  const resp = await axios.get(FEED_URL, {
-    timeout: 60000,
-    responseType: 'text',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
-    },
-    maxContentLength: 100 * 1024 * 1024, // até 100MB
-  });
-
-  const csv = resp.data;
-
-  // Salva no cache
-  try {
-    const dir = path.dirname(CACHE_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(CACHE_PATH, csv);
-    fs.writeFileSync(CACHE_META, JSON.stringify({ baixadoEm: Date.now() }));
-  } catch (err) {
-    console.warn('Aviso: não foi possível salvar cache:', err.message);
-  }
-
-  console.log(`✅ Feed baixado: ${(csv.length / 1024 / 1024).toFixed(1)}MB`);
-  return csv;
+  await baixarFeedStreaming();
+  return CACHE_PATH;
 }
 
-function parsearFeed(csv) {
+function parsearFeedDeArquivo(filePath) {
+  console.log('📖 Lendo e parseando CSV...');
+  const csv = fs.readFileSync(filePath, 'utf8');
+
   let registros;
   try {
     registros = parse(csv, {
@@ -76,7 +103,9 @@ function parsearFeed(csv) {
     return [];
   }
 
-  return registros.map(parsearLinha).filter(Boolean);
+  const parsed = registros.map(parsearLinha).filter(Boolean);
+  console.log(`📊 ${parsed.length} produtos no feed`);
+  return parsed;
 }
 
 function parsearLinha(r) {
@@ -97,11 +126,10 @@ function parsearLinha(r) {
     desconto,
     avaliacao,
     shopRating,
-    vendidos:      0, // não vem no feed
+    vendidos:      0,
     url:           r.product_link,
-    linkAfiliado:  link,  // já vem pronto!
+    linkAfiliado:  link,
     categoria1:    r.global_category1,
-    categoria2:    r.global_category2,
   };
 }
 
@@ -111,11 +139,10 @@ function filtrarQualidade(produtos) {
     p.avaliacao   >= MIN_AVALIACAO &&
     p.precoAtual  >= MIN_PRECO &&
     p.precoAtual  <= MAX_PRECO &&
-    p.shopRating  >= 4.5
+    p.shopRating  >= MIN_SHOP_RATING
   );
 }
 
-// Embaralha array (variedade nos envios)
 function embaralhar(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -127,22 +154,19 @@ function embaralhar(arr) {
 
 async function buscarProdutos(limite = 30) {
   try {
-    const csv = await baixarFeed();
-    const todos = parsearFeed(csv);
-    console.log(`📊 ${todos.length} produtos no feed`);
+    const filePath = await obterFeed();
+    const todos = parsearFeedDeArquivo(filePath);
 
     const filtrados = filtrarQualidade(todos);
     console.log(`✨ ${filtrados.length} produtos passaram nos critérios (desconto ≥${MIN_DESCONTO}%, nota ≥${MIN_AVALIACAO}, R$ ${MIN_PRECO}-${MAX_PRECO})`);
 
-    const embaralhados = embaralhar(filtrados);
-    return embaralhados.slice(0, limite);
+    return embaralhar(filtrados).slice(0, limite);
   } catch (err) {
     console.error('❌ Erro ao buscar produtos:', err.message);
     return [];
   }
 }
 
-// Link já vem pronto no feed — função existe só pra manter compatibilidade com index.js
 async function gerarLinkAfiliado(urlOriginal, linkPronto) {
   return linkPronto || urlOriginal;
 }
