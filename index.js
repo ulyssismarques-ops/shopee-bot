@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { CronJob } = require('cron');
-const { conectarWhatsApp, enviarMensagem } = require('./whatsapp');
+const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda } = require('./whatsapp');
 const { buscarProdutos, gerarLinkAfiliado } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
@@ -51,7 +51,11 @@ async function cicloEnvio() {
 
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
-      await enviarMensagem(GRUPO_ID, mensagem);
+      if (produto.imagem) {
+        await enviarImagemComLegenda(GRUPO_ID, produto.imagem, mensagem);
+      } else {
+        await enviarMensagem(GRUPO_ID, mensagem);
+      }
       console.log(`  📤 Enviado: ${produto.nome.slice(0, 50)}...`);
       await sleep(DELAY_ENTRE_MSGS);
     }
