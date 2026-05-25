@@ -168,6 +168,20 @@ function filtrarQualidade(produtos) {
   return [...emba(comDesconto), ...emba(semDesconto)];
 }
 
+const PALAVRAS_BELEZA = [
+  'beleza', 'cosméticos', 'cosmético', 'maquiagem', 'skincare',
+  'perfumaria', 'perfume', 'cabelo', 'cuidados pessoais', 'pele',
+  'hidratante', 'batom', 'protetor', 'shampoo', 'condicionador',
+  'serum', 'sérum', 'creme', 'base ', 'iluminador', 'blush',
+  'esmalte', 'manicure', 'depilação', 'limpeza facial',
+];
+
+function ehBeleza(produto) {
+  const cat = (produto.categoria1 || '').toLowerCase();
+  const nome = (produto.nome || '').toLowerCase();
+  return PALAVRAS_BELEZA.some(p => cat.includes(p) || nome.includes(p));
+}
+
 async function buscarProdutos(limite = 30) {
   try {
     const filePath = await obterFeed();
@@ -180,6 +194,32 @@ async function buscarProdutos(limite = 30) {
     return filtrados.slice(0, limite);
   } catch (err) {
     console.error('❌ Erro ao buscar produtos:', err.message);
+    return [];
+  }
+}
+
+async function buscarProdutosBeleza(limite = 30) {
+  try {
+    const filePath = await obterFeed();
+    const todos = parsearFeedDeArquivo(filePath);
+    const filtrados = filtrarQualidade(todos.filter(ehBeleza));
+    console.log(`💄 ${filtrados.length} produtos de beleza no funil`);
+    return filtrados.slice(0, limite);
+  } catch (err) {
+    console.error('❌ Erro ao buscar produtos de beleza:', err.message);
+    return [];
+  }
+}
+
+async function buscarProdutosGerais(limite = 30) {
+  try {
+    const filePath = await obterFeed();
+    const todos = parsearFeedDeArquivo(filePath);
+    const filtrados = filtrarQualidade(todos.filter(p => !ehBeleza(p)));
+    console.log(`🛍️  ${filtrados.length} produtos gerais no funil`);
+    return filtrados.slice(0, limite);
+  } catch (err) {
+    console.error('❌ Erro ao buscar produtos gerais:', err.message);
     return [];
   }
 }
@@ -216,4 +256,4 @@ async function encurtarTinyURL(url) {
   return null;
 }
 
-module.exports = { buscarProdutos, gerarLinkAfiliado };
+module.exports = { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, ehBeleza };

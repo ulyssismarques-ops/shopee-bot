@@ -1,9 +1,10 @@
 require('dotenv').config();
 const { CronJob } = require('cron');
 const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda } = require('./whatsapp');
-const { buscarProdutos, gerarLinkAfiliado } = require('./shopee');
+const { buscarProdutos, gerarLinkAfiliado, ehBeleza } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
+const { postarNoInstagram, selecionarDestaque } = require('./instagram');
 
 const GRUPO_ID       = process.env.WHATSAPP_GROUP_ID;
 const TESTAR_AGORA   = process.env.TESTAR_AGORA === 'true';
@@ -60,6 +61,19 @@ async function cicloEnvio() {
 
     marcarEnviados(comLinks);
     console.log(`✅ Ciclo concluído — ${comLinks.length} produtos enviados.\n`);
+
+    // Instagram: filtra em memória do feed já carregado (sem reler o CSV)
+    const produtosBeleza = produtos.filter(ehBeleza);
+    const produtosGerais = produtos.filter(p => !ehBeleza(p));
+
+    console.log(`💄 ${produtosBeleza.length} produtos de beleza para Instagram`);
+    console.log(`🛍️  ${produtosGerais.length} produtos gerais para Instagram`);
+
+    const destaqueBeleza = selecionarDestaque(produtosBeleza);
+    const destaqueGeral  = selecionarDestaque(produtosGerais);
+
+    if (destaqueBeleza) await postarNoInstagram(destaqueBeleza, 'beleza');
+    if (destaqueGeral)  await postarNoInstagram(destaqueGeral,  'geral');
 
   } catch (err) {
     console.error('❌ Erro no ciclo de envio:', err.message);
