@@ -223,9 +223,24 @@ Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio)
 
 ## 🚨 Tarefas de manutenção
 
+### ⏰ Calendário de manutenção (preventivo)
+
+| Quando | O quê | Por quê |
+|---|---|---|
+| **A cada 60 dias** | Verificar se Instagram ainda posta normalmente nos 2 perfis | Page Access Tokens **em teoria não expiram**, mas Meta muda políticas — vale conferir preventivamente. Tokens criados em **25/05/2026** → próxima verificação **~24/07/2026** |
+| **Quando o WhatsApp parar de enviar** | Atualizar `SHOPEE_FEED_URL` | A URL do feed Shopee **muda às vezes** (token expira na conta de afiliada) |
+| **Se Instagram parar de postar** | Reemitir Page Tokens (ver passo a passo abaixo) | Token pode ser invalidado se a Rosana revogar acesso do app ou trocar senha |
+| **Quando atualizar tokens Meta** | Atualizar `INSTAGRAM_BELEZA_TOKEN` e `INSTAGRAM_GERAL_TOKEN` no Railway | Os tokens novos vão no Railway → Variables, redeploy automático |
+
+⚠️ **Não esperar quebrar pra agir nos tokens.** Marcar lembrete a cada 60 dias pra abrir os 2 perfis Instagram e conferir que o último post saiu certinho. Se der erro, é hora de reemitir.
+
+---
+
 ### 1. Atualizar `SHOPEE_FEED_URL` quando expirar
 
-**Sintoma:** logs mostram `❌ Erro ao buscar produtos: status 401/403`. Mensagens param.
+⚠️ **A URL do feed Shopee MUDA periodicamente** — não tem prazo fixo, mas pode acontecer a qualquer momento.
+
+**Sintoma:** logs mostram `❌ Erro ao buscar produtos: status 401/403`. Mensagens param de chegar no grupo WhatsApp e nos Instagrams.
 
 **Fix (3 min):**
 1. `affiliate.shopee.com.br` → login com `rosanaro2021`
@@ -233,15 +248,24 @@ Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio)
 3. Clica em **"Ver Link"** do feed `Shopee Oficial BR - 2022`
 4. Copia URL nova
 5. Railway → serviço `shopee-bot` → Variables → edita `SHOPEE_FEED_URL`
-6. Redeploy automático
+6. Redeploy automático em ~30s
 
 ### 2. Page Tokens do Instagram
 
-**Em teoria não expiram**, mas se a Rosana revogar acesso do app na conta dela ou alterar senha, os tokens podem ser invalidados.
+⚠️ **Os tokens são "permanentes" em teoria**, mas:
+- Meta pode mudar a política e invalidar tokens antigos
+- Se a Rosana revogar acesso do app na conta dela, **invalida na hora**
+- Se ela trocar senha do Facebook, **pode invalidar**
+- **A cada 60 dias é recomendado verificar preventivamente** se ainda postam
 
-**Sintoma:** logs mostram `❌ Instagram [beleza/geral] erro: Invalid OAuth access token`
+**Sintoma de problema:** logs mostram `❌ Instagram [beleza/geral] erro: Invalid OAuth access token`
 
-**Fix:** Reexecutar fluxo completo de obtenção (ver "Arquitetura Instagram" acima).
+**Fix (15 min):** Reexecutar fluxo completo de obtenção (ver "Arquitetura Instagram" acima — seção "Como funcionam os tokens"). Resumo:
+1. Graph API Explorer → User Access Token curto com as 6 permissões
+2. Trocar por long-lived User Token (60 dias) via `/oauth/access_token?grant_type=fb_exchange_token`
+3. `GET /me/accounts?fields=name,access_token,instagram_business_account` → retorna Page Tokens
+4. Atualizar `INSTAGRAM_BELEZA_TOKEN` e `INSTAGRAM_GERAL_TOKEN` no Railway → Variables
+5. Redeploy automático
 
 ### 3. Landing page fora do ar
 
