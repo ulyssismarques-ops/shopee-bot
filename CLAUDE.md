@@ -217,6 +217,7 @@ Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio)
 12. **Instagram:** filtra produtos em memória por categoria (beleza vs geral)
 13. Seleciona produto com **maior desconto** de cada categoria
 14. Posta 1 produto de beleza no `@byrosanamatias` + 1 produto geral no `@achadinhosdaroh01`
+15. **NOVO (v3.1):** após cada post Instagram, salva metadados do produto em `/data/historico.json` (arrays `postadosBeleza` e `postadosGeral`, máx 25 cada) → landing page lê esse arquivo em tempo real
 
 ---
 
@@ -241,6 +242,17 @@ Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio)
 **Sintoma:** logs mostram `❌ Instagram [beleza/geral] erro: Invalid OAuth access token`
 
 **Fix:** Reexecutar fluxo completo de obtenção (ver "Arquitetura Instagram" acima).
+
+### 3. Landing page fora do ar
+
+**Sintoma:** clicar no link da bio Instagram retorna erro 502/503 ou timeout.
+
+**Fix:**
+1. Railway → serviço `shopee-bot` → aba **Deployments**
+2. Confirma se último deploy está com status `Success`
+3. Se sim, clica **Redeploy** pra forçar reinício
+4. Se logs mostrarem `EADDRINUSE` ou erro de porta: confirma que `PORT` env var está sendo respeitada (Railway define automaticamente, código usa `process.env.PORT || 3000`)
+5. Domínio público (Public Networking) deve estar habilitado em Settings → Networking
 
 ---
 
@@ -276,13 +288,34 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Envio com foto direto do CDN
 - 5 disparos/dia (3h em 3h)
 
-### v3.0 (25/05/2026) — **EM PRODUÇÃO** ✅
+### v3.0 (25/05/2026 manhã)
 - Tudo da v2.0 +
 - Integração Instagram via Meta Graph API
 - Dois perfis (beleza/geral) com cross-promoção
 - Page Access Tokens que **nunca expiram**
 - Filtragem inteligente de produtos por categoria (palavras-chave de beleza)
 - Seleção automática do produto com maior desconto para destaque
+
+### v3.1 (25/05/2026 tarde) — **EM PRODUÇÃO** ✅
+- Tudo da v3.0 +
+- **Landing page pública** servida pelo próprio bot (Express)
+- Resolve a limitação fundamental do Instagram (só 1 link clicável na bio, nenhum link clicável em legendas)
+- 2 rotas: `/beleza` (bio do `@byrosanamatias`) e `/geral` (bio do `@achadinhosdaroh01`)
+- Cada página tem: botão verde Grupo VIP WhatsApp + destaque atual + grid dos últimos 25 produtos
+- Cada produto clicável vai direto pra Shopee — resolve "e se eu quiser produto de um post antigo?"
+- Histórico de produtos postados persistido em `/data/historico.json` (arrays `postadosBeleza` e `postadosGeral`)
+- HTML escape em todos os campos — proteção XSS
+- Mobile-first, 2 temas (rosa beleza / laranja geral)
+- URL pública: `shopee-bot-production-e39e.up.railway.app`
+
+---
+
+## 🌍 URLs em produção
+
+- Página índice: https://shopee-bot-production-e39e.up.railway.app/
+- Bio do @byrosanamatias: https://shopee-bot-production-e39e.up.railway.app/beleza
+- Bio do @achadinhosdaroh01: https://shopee-bot-production-e39e.up.railway.app/geral
+- Healthcheck: https://shopee-bot-production-e39e.up.railway.app/health
 
 ---
 
