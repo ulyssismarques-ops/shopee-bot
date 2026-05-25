@@ -46,6 +46,9 @@ async function postarNoInstagram(produto, perfil = 'geral') {
       { params: { image_url: produto.imagem, caption, access_token: token } }
     );
 
+    // Aguarda o container ficar pronto antes de publicar
+    await aguardarContainerPronto(container.id, token);
+
     await axios.post(
       `${BASE_URL}/${userId}/media_publish`,
       null,
@@ -57,6 +60,24 @@ async function postarNoInstagram(produto, perfil = 'geral') {
     const msg = err.response?.data?.error?.message || err.message;
     console.error(`  ❌ Instagram [${perfil}] erro: ${msg}`);
   }
+}
+
+async function aguardarContainerPronto(containerId, token, maxTentativas = 10) {
+  for (let i = 0; i < maxTentativas; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const { data } = await axios.get(`${BASE_URL}/${containerId}`, {
+        params: { fields: 'status_code', access_token: token },
+      });
+      if (data.status_code === 'FINISHED') return;
+      if (data.status_code === 'ERROR' || data.status_code === 'EXPIRED') {
+        throw new Error(`Container falhou: ${data.status_code}`);
+      }
+    } catch (err) {
+      if (i === maxTentativas - 1) throw err;
+    }
+  }
+  throw new Error('Container não ficou pronto após 30s');
 }
 
 // Legenda sutil para @byrosanamatias — combina com o estilo de beleza dela
