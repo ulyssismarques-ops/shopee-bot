@@ -5,6 +5,7 @@ const { buscarProdutos, gerarLinkAfiliado, ehBeleza } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
 const { postarNoInstagram, selecionarDestaque } = require('./instagram');
+const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID       = process.env.WHATSAPP_GROUP_ID;
 const TESTAR_AGORA   = process.env.TESTAR_AGORA === 'true';
@@ -85,7 +86,10 @@ function sleep(ms) {
 }
 
 async function main() {
-  console.log('🤖 Shopee Bot v2.0 iniciando (modo feed)...');
+  console.log('🤖 Shopee Bot v3.1 iniciando (feed + Instagram + landing page)...');
+
+  // Sobe primeiro o servidor HTTP — Railway precisa responder rápido pro healthcheck
+  iniciarServidor();
 
   await conectarWhatsApp();
 

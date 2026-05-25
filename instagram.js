@@ -1,14 +1,15 @@
 const axios = require('axios');
+const { salvarProdutoPostado } = require('./historico');
 
 const BASE_URL = 'https://graph.facebook.com/v19.0';
 
 // Perfil @byrosanamatias — beleza e estética
-const IG_BELEZA_USER_ID     = process.env.INSTAGRAM_BELEZA_USER_ID;
-const IG_BELEZA_TOKEN       = process.env.INSTAGRAM_BELEZA_TOKEN;
+const IG_BELEZA_USER_ID = process.env.INSTAGRAM_BELEZA_USER_ID;
+const IG_BELEZA_TOKEN   = process.env.INSTAGRAM_BELEZA_TOKEN;
 
 // Perfil @achadinhosdaroh01 — produtos gerais
-const IG_GERAL_USER_ID      = process.env.INSTAGRAM_GERAL_USER_ID;
-const IG_GERAL_TOKEN        = process.env.INSTAGRAM_GERAL_TOKEN;
+const IG_GERAL_USER_ID  = process.env.INSTAGRAM_GERAL_USER_ID;
+const IG_GERAL_TOKEN    = process.env.INSTAGRAM_GERAL_TOKEN;
 
 const HASHTAGS_BELEZA =
   '#beleza #skincare #maquiagem #dicasdebeleza #cuidadospessoais ' +
@@ -34,10 +35,9 @@ async function postarNoInstagram(produto, perfil = 'geral') {
     return;
   }
 
-  const link    = produto.linkAfiliado || produto.url;
   const caption = perfil === 'beleza'
-    ? formatarLegendaBeleza(produto.nome, produto.precoAtual, produto.precoOriginal, link)
-    : formatarLegendaGeral(produto.nome, produto.precoAtual, produto.precoOriginal, link);
+    ? formatarLegendaBeleza(produto.nome, produto.precoAtual, produto.precoOriginal)
+    : formatarLegendaGeral(produto.nome, produto.precoAtual, produto.precoOriginal);
 
   try {
     const { data: container } = await axios.post(
@@ -46,7 +46,9 @@ async function postarNoInstagram(produto, perfil = 'geral') {
       { params: { image_url: produto.imagem, caption, access_token: token } }
     );
 
-    // Aguarda alguns segundos para o Instagram processar a imagem
+    // Aguarda 5s fixos pro Instagram processar a imagem.
+    // Page Tokens não fazem GET no /{container_id} (Authorization Error code 100 subcode 33),
+    // então polling de status não funciona — mas 5s é suficiente pra imagens JPEG da Shopee.
     await new Promise(r => setTimeout(r, 5000));
 
     await axios.post(
@@ -56,14 +58,19 @@ async function postarNoInstagram(produto, perfil = 'geral') {
     );
 
     console.log(`  📸 Instagram [${perfil}]: publicado "${produto.nome.slice(0, 50)}..."`);
+
+    // Guarda metadados pra alimentar a landing page
+    salvarProdutoPostado(produto, perfil);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
     console.error(`  ❌ Instagram [${perfil}] erro: ${msg}`);
   }
 }
 
-// Legenda sutil para @byrosanamatias — combina com o estilo de beleza dela
-function formatarLegendaBeleza(nome, precoAtual, precoOriginal, link) {
+// Legenda para @byrosanamatias — estilo beleza
+// Todos os links (produto + WhatsApp) ficam na landing page apontada pela bio,
+// porque Instagram nunca torna links clicáveis em captions.
+function formatarLegendaBeleza(nome, precoAtual, precoOriginal) {
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
@@ -73,17 +80,16 @@ function formatarLegendaBeleza(nome, precoAtual, precoOriginal, link) {
     `✨ Achado do dia!\n\n` +
     `${nome}\n\n` +
     `💰 ${linhaOrig}R$ ${preco}\n\n` +
-    `👇 Link para comprar:\n${link}\n\n` +
+    `👆 Toca no link da BIO pra comprar\n` +
+    `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🤩 Mais promoções exclusivas no meu grupo VIP do WhatsApp!\n` +
-    `Entra lá — link na bio 👆\n` +
-    `(Também tem o @achadinhosdaroh01 com achados de tudo!)\n\n` +
+    `Achados de tudo? Segue a @achadinhosdaroh01 🛒\n\n` +
     `${HASHTAGS_BELEZA}`
   );
 }
 
-// Legenda animada para @achadinhosdaroh01 — estilo promoção
-function formatarLegendaGeral(nome, precoAtual, precoOriginal, link) {
+// Legenda para @achadinhosdaroh01 — estilo promoção
+function formatarLegendaGeral(nome, precoAtual, precoOriginal) {
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
@@ -93,16 +99,14 @@ function formatarLegendaGeral(nome, precoAtual, precoOriginal, link) {
     `🔥 OFERTA IMPERDÍVEL!\n\n` +
     `🎁 ${nome}\n\n` +
     `💥 ${linhaOrig}R$ ${preco}\n\n` +
-    `👇 Compre aqui:\n${link}\n\n` +
+    `👆 Toca no link da BIO pra comprar\n` +
+    `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🤩 Quer receber promoções EXCLUSIVAS antes de todo mundo?\n` +
-    `Entre no meu grupo VIP do WhatsApp! Link na bio 👆\n` +
-    `(Dicas de beleza? Segue a @byrosanamatias 💄)\n\n` +
+    `Dicas de beleza? Segue a @byrosanamatias 💄\n\n` +
     `${HASHTAGS_GERAL}`
   );
 }
 
-// Seleciona o produto com maior desconto para destaque no Instagram
 function selecionarDestaque(produtos) {
   if (!produtos.length) return null;
   return produtos.reduce((melhor, p) => {

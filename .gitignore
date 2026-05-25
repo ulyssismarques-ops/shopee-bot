@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+mockup/
+data/
+/data/
+.DS_Store
+.claude/settings.local.json

@@ -12,10 +12,11 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Posta 5 produtos por disparo, 5 disparos/dia, **3h em 3h** (8h · 11h · 14h · 17h · 20h SP)
 - Envia **foto + legenda** no grupo `GRUPO EXCLUSIVO - Achadinhos da Roh #1` via Baileys
 - **Posta 1 produto destaque em cada perfil do Instagram** (beleza no @byrosanamatias, geral no @achadinhosdaroh01) via Meta Graph API
+- **Serve landing page pública** (`/beleza` e `/geral`) com destaque + grid dos últimos 25 produtos + botão WhatsApp clicável — resolve a limitação do Instagram de só ter 1 link clicável por perfil
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.0 (modo Feed CSV + Instagram dual)
+**Versão atual:** v3.1 (Feed CSV + Instagram dual + landing page)
 
 ---
 
@@ -25,6 +26,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - **@whiskeysockets/baileys** v6.7.22 — WhatsApp direto, sem Evolution API
 - **axios** + **csv-parse** — feed Shopee
 - **cron** — scheduler
+- **express** — landing page pública
 - **qrcode-terminal** — QR no login
 - **pino** — logger silencioso
 - **Meta Graph API v19.0** — Instagram via Page Access Tokens (não expiram)
@@ -37,12 +39,13 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 
 | Arquivo | Função |
 |---|---|
-| `index.js` | Scheduler cron + orquestração do ciclo (WhatsApp + Instagram) |
+| `index.js` | Scheduler cron + orquestração do ciclo (WhatsApp + Instagram) + sobe landing page |
 | `whatsapp.js` | Baileys: conexão, QR, listagem de grupos, envio texto/imagem |
 | `shopee.js` | Download streaming do feed CSV, parsing, filtros, separação beleza/geral |
 | `instagram.js` | Meta Graph API: publica em 2 perfis (beleza/geral) com Page Tokens |
+| `landingpage.js` | Servidor Express com `/beleza` e `/geral` — destaque + grid dos últimos 25 produtos + botão WhatsApp |
 | `mensagem.js` | Formato da mensagem padrão Rosana (WhatsApp) |
-| `historico.js` | Anti-repetição (ring buffer de 300 IDs) |
+| `historico.js` | Anti-repetição (ring buffer de 300 IDs) + metadados dos últimos 25 produtos por categoria (alimenta landing page) |
 | `package.json` | Deps |
 | `Dockerfile` | Build Railway (node:20-slim + git + openssh + build tools) |
 | `.env.example` | Variáveis de referência (valores reais no Railway) |
@@ -90,6 +93,12 @@ Railway detecta o push em ~30s e faz redeploy em ~90s.
 | `INSTAGRAM_GERAL_USER_ID` | `17841454857520124` | ID Instagram Business da `@achadinhosdaroh01` |
 | `INSTAGRAM_GERAL_TOKEN` | Page Token da Achadinhos da Roh | **Nunca expira** (Page Access Token) |
 
+### Landing page
+
+| Variável | Valor | Comentário |
+|---|---|---|
+| `PORT` | (Railway define automaticamente) | porta HTTP que o Express escuta |
+
 ⚠️ `TESTAR_AGORA=true` é flag opcional pra disparar envio imediato no boot. **Sempre deletar após testes**, senão dispara extra a cada redeploy.
 
 ---
@@ -130,6 +139,50 @@ As legendas se cross-promovem mutuamente — quem segue um descobre o outro.
 - Caso de uso **"Gerenciar mensagens e conteúdo no Instagram"** (Instagram API com Facebook Login)
 - Caso de uso **"Gerenciar tudo na sua Página"** (Pages API)
 - Permissões: `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `business_management`
+
+---
+
+## 🌐 Arquitetura Landing Page
+
+### Por que existe
+
+Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio). Links em legendas/captions **nunca** são clicáveis. Pra ter produto + WhatsApp ambos clicáveis, a bio aponta pra essa landing page intermediária que tem os dois botões.
+
+### Rotas
+
+| URL | Conteúdo |
+|---|---|
+| `/` | Página índice com 2 botões (beleza / geral) |
+| `/beleza` | Bio do `@byrosanamatias` — produtos beleza + WhatsApp |
+| `/geral` | Bio do `@achadinhosdaroh01` — produtos gerais + WhatsApp |
+| `/health` | Endpoint pro Railway healthcheck |
+
+### Como o usuário fica conhecendo
+
+1. Vê o post no feed Instagram
+2. Legenda diz "Toca no link da BIO 👆"
+3. Toca no perfil → toca no link azul (URL Railway)
+4. Abre a landing page: botão grande verde "Grupo VIP WhatsApp" + destaque atual + grid dos últimos 24 achados
+5. Cada produto na grid leva direto pra Shopee — resolve o problema de produto antigo (se viu post de ontem, rola o grid e clica)
+
+### Setup manual (Rosana faz uma vez só)
+
+1. Pegar URL pública do Railway (ex: `shopee-bot-production.up.railway.app`)
+2. Instagram `@byrosanamatias` → Editar perfil → campo Site → cola `<railway-url>/beleza`
+3. Instagram `@achadinhosdaroh01` → Editar perfil → campo Site → cola `<railway-url>/geral`
+4. Salva. Nunca mais precisa mexer — a página atualiza sozinha.
+
+### Como os dados chegam na landing
+
+- `instagram.js::postarNoInstagram()` chama `salvarProdutoPostado(produto, categoria)` após publicar com sucesso
+- `historico.js` guarda em `/data/historico.json` nos arrays `postadosBeleza` e `postadosGeral` (máx 25 cada, FIFO)
+- `landingpage.js::renderPagina()` lê esse arquivo a cada request e renderiza HTML mobile-first
+
+### Segurança
+
+- HTML escape em todos os campos vindos do produto (nome, link, imagem) — protege XSS
+- Express com `x-powered-by` desabilitado
+- Imagens com `onerror` pra esconder se 404 (CDN da Shopee é estável mas)
 
 ---
 
