@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'https://graph.instagram.com/v22.0';
+const BASE_URL = 'https://graph.facebook.com/v19.0';
 
 // Perfil @byrosanamatias — beleza e estética
 const IG_BELEZA_USER_ID     = process.env.INSTAGRAM_BELEZA_USER_ID;
