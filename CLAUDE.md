@@ -20,7 +20,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.7 (Badge "Envio Rápido" na landing page)
+**Versão atual:** v3.8 (Envio Rápido nas mensagens + fontes maiores)
 
 ---
 
@@ -399,16 +399,35 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Internacional ainda pode vencer se "muito top" (evento +50 ou trending +30 compensam)
 - `filtrarQualidade` loga contagem nacional vs internacional
 
-### v3.7 (26/05/2026 noite) — **EM PRODUÇÃO** ✅
+### v3.7 (26/05/2026 noite)
 - Tudo da v3.6 +
-- **Badge "🇧🇷 Envio Rápido" na landing page** — destaque visual pra produtos nacionais (feedback: "isso, coloca envio rapido .. muito bom com destaque")
-- `historico.js::salvarProdutoPostado` agora persiste o campo `crossBorder`
-- `landingpage.js` mostra 3 elementos visuais quando `crossBorder === false`:
-  1. **Card destaque** — Badge verde-amarelo "🇧🇷 ENVIO RÁPIDO" no canto superior direito da foto
-  2. **Card destaque** — Faixa verde-amarela "🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias" logo acima do nome
-  3. **Cards do grid** — Bandeirinha 🇧🇷 pequena no canto da foto (estilo "selo")
-- Internacionais não mostram badge (sem feedback negativo, apenas ausência)
+- **Badge "🇧🇷 Envio Rápido" na landing page** — destaque visual pra produtos nacionais
+- `historico.js::salvarProdutoPostado` persiste o campo `crossBorder`
+- `landingpage.js` mostra 3 elementos visuais pra produto nacional (badge canto, faixa, bandeirinha grid)
 - Cores das gradientes seguem a bandeira do Brasil: verde #009b3a → amarelo #ffd700
+
+### v3.8 (26/05/2026 noite tarde) — **EM PRODUÇÃO** ✅
+- Tudo da v3.7 +
+- **"🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias" também nas mensagens** (feedback: "sim pode adicionar")
+- `mensagem.js` (WhatsApp): adiciona linha extra entre preço e CTA pra produto nacional
+- `instagram.js` (ambos perfis): adiciona linha extra na caption pra produto nacional
+- **Fontes aumentadas em toda a landing page** (feedback: "achei muito pequeno as fontes"):
+  - Título: 20px → 26px
+  - Subtítulo: 13px → 15px
+  - Botão WhatsApp: 16px/12px → 19px/14px
+  - Section titles: 14px → 17px
+  - Nome do produto destaque: 14px → 17px
+  - Preço destaque: 24px → 30px
+  - Botão COMPRAR: 15px → 18px
+  - Nome do produto no grid: 12px → 14px
+  - Preço no grid: 14px → 16px
+  - Badge ENVIO RÁPIDO: 11px → 13px
+  - Faixa Vendedor brasileiro: 12px → 14px
+  - Badge desconto destaque: 13px → 15px
+  - Badge desconto grid: 11px → 13px
+  - Logo: 76px → 90px
+  - Padding e margins proporcionalmente ajustados
+- Internacionais não mostram linha nem badge — só ausência (sem indicador negativo)
 
 ---
 

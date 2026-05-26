@@ -38,8 +38,8 @@ async function postarNoInstagram(produto, perfil = 'geral') {
 
   const chamada = gerarChamada(produto, perfil);
   const caption = perfil === 'beleza'
-    ? formatarLegendaBeleza(produto.nome, produto.precoAtual, produto.precoOriginal, chamada)
-    : formatarLegendaGeral(produto.nome, produto.precoAtual, produto.precoOriginal, chamada);
+    ? formatarLegendaBeleza(produto, chamada)
+    : formatarLegendaGeral(produto, chamada);
 
   try {
     const { data: container } = await axios.post(
@@ -71,18 +71,24 @@ async function postarNoInstagram(produto, perfil = 'geral') {
 
 // Legenda para @byrosanamatias — estilo beleza
 // Linha de abertura é a "chamada" contextual (Copa, Namorados, estação, etc).
+// v3.8 — linha "🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias" pra produto nacional
 // Links (produto + WhatsApp) ficam na landing page apontada pela bio,
 // porque Instagram nunca torna links clicáveis em captions.
-function formatarLegendaBeleza(nome, precoAtual, precoOriginal, chamada) {
+function formatarLegendaBeleza(produto, chamada) {
+  const { nome, precoAtual, precoOriginal, crossBorder } = produto;
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
     : 'Por apenas ';
+  const linhaEnvio = crossBorder === false
+    ? `🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias\n\n`
+    : '';
 
   return (
     `${chamada}\n\n` +
     `${nome}\n\n` +
     `💰 ${linhaOrig}R$ ${preco}\n\n` +
+    `${linhaEnvio}` +
     `👆 Toca no link da BIO pra comprar\n` +
     `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -92,16 +98,21 @@ function formatarLegendaBeleza(nome, precoAtual, precoOriginal, chamada) {
 }
 
 // Legenda para @achadinhosdaroh01 — estilo promoção
-function formatarLegendaGeral(nome, precoAtual, precoOriginal, chamada) {
+function formatarLegendaGeral(produto, chamada) {
+  const { nome, precoAtual, precoOriginal, crossBorder } = produto;
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
     : 'Por apenas ';
+  const linhaEnvio = crossBorder === false
+    ? `🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias\n\n`
+    : '';
 
   return (
     `${chamada}\n\n` +
     `🎁 ${nome}\n\n` +
     `💥 ${linhaOrig}R$ ${preco}\n\n` +
+    `${linhaEnvio}` +
     `👆 Toca no link da BIO pra comprar\n` +
     `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
