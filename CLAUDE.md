@@ -9,14 +9,17 @@
 Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Baixa feed CSV oficial de afiliados (100k+ produtos diários)
 - Filtra produtos com nota ≥ 4.0, preço R$ 5-300, prioriza desconto ≥ 15%
-- Posta 5 produtos por disparo, 5 disparos/dia, **3h em 3h** (8h · 11h · 14h · 17h · 20h SP)
+- **Horários separados por canal** (v3.2):
+  - **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos por disparo = 10 produtos/dia
+  - **Instagram @byrosanamatias** (beleza): 1x/dia às 20h (horário de pico)
+  - **Instagram @achadinhosdaroh01** (geral): 5x/dia (8h · 11h · 14h · 17h · 20h)
 - Envia **foto + legenda** no grupo `GRUPO EXCLUSIVO - Achadinhos da Roh #1` via Baileys
-- **Posta 1 produto destaque em cada perfil do Instagram** (beleza no @byrosanamatias, geral no @achadinhosdaroh01) via Meta Graph API
+- **Posta 1 produto destaque** por perfil Instagram via Meta Graph API
 - **Serve landing page pública** (`/beleza` e `/geral`) com destaque + grid dos últimos 25 produtos + botão WhatsApp clicável — resolve a limitação do Instagram de só ter 1 link clicável por perfil
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.1 (Feed CSV + Instagram dual + landing page)
+**Versão atual:** v3.2 (Horários separados por canal)
 
 ---
 
@@ -201,23 +204,32 @@ Instagram **só permite 1 link clicável por perfil** (o campo "Website" da bio)
 
 ---
 
-## 🔄 Fluxo do ciclo de envio
+## 🔄 Fluxo dos ciclos (v3.2 — separados por canal)
 
-1. Cron dispara no horário (ex: 14h SP)
-2. Verifica `/data/feed_cache.csv` — se < 6h, usa do cache
-3. Senão, baixa feed via streaming (`SHOPEE_FEED_URL`) e atualiza cache
-4. Parseia CSV completo (~100k produtos)
-5. Aplica filtros: nota ≥ 4.0, preço R$ 5-300, nome ≥ 10 chars
-6. Separa em 2 grupos: com desconto ≥ 15% (prioridade) e sem desconto (fallback)
-7. Embaralha cada grupo, concatena (descontos primeiro)
-8. Filtra 5 que ainda não foram enviados (`/data/historico.json`)
-9. Para cada um: baixa imagem do CDN → envia foto + legenda no grupo WhatsApp
-10. Aguarda 4s entre cada envio
-11. Marca os 5 IDs no histórico (ring buffer)
-12. **Instagram:** filtra produtos em memória por categoria (beleza vs geral)
-13. Seleciona produto com **maior desconto** de cada categoria
-14. Posta 1 produto de beleza no `@byrosanamatias` + 1 produto geral no `@achadinhosdaroh01`
-15. **NOVO (v3.1):** após cada post Instagram, salva metadados do produto em `/data/historico.json` (arrays `postadosBeleza` e `postadosGeral`, máx 25 cada) → landing page lê esse arquivo em tempo real
+Cada canal tem seu próprio cron e função. O feed CSV é compartilhado via cache de 6h (não baixa toda hora).
+
+### Ciclo WhatsApp (12h e 20h)
+1. Verifica `/data/feed_cache.csv` — usa se < 6h
+2. Aplica filtros (nota ≥ 4.0, preço R$ 5-300, nome ≥ 10 chars)
+3. Filtra 5 que ainda não foram enviados (`historico.enviados`)
+4. Encurta links via TinyURL (fallback pro link feio se falhar)
+5. Pra cada produto: baixa imagem do CDN → envia foto + legenda no grupo
+6. Aguarda 4s entre cada envio
+7. Marca os 5 IDs no histórico (ring buffer 300)
+
+### Ciclo Instagram beleza (20h)
+1. Mesmo feed do WhatsApp (cache compartilhado)
+2. Filtra produtos com palavras de beleza
+3. Seleciona o de **maior desconto**
+4. Encurta link via TinyURL
+5. Posta no `@byrosanamatias` via Meta Graph API (Page Token)
+6. Salva metadados em `historico.postadosBeleza` (máx 25) → alimenta landing `/beleza`
+
+### Ciclo Instagram geral (8h, 11h, 14h, 17h, 20h)
+Mesma lógica do beleza, mas filtra produtos NÃO-beleza, posta no `@achadinhosdaroh01`, salva em `historico.postadosGeral` → alimenta landing `/geral`
+
+### Quando 20h bate
+Os 3 canais disparam ao mesmo tempo (WhatsApp + IG beleza + IG geral). Cada um é independente — se um falhar, os outros continuam. O feed é único (cache).
 
 ---
 
@@ -320,7 +332,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Filtragem inteligente de produtos por categoria (palavras-chave de beleza)
 - Seleção automática do produto com maior desconto para destaque
 
-### v3.1 (25/05/2026 tarde) — **EM PRODUÇÃO** ✅
+### v3.1 (25/05/2026 tarde)
 - Tudo da v3.0 +
 - **Landing page pública** servida pelo próprio bot (Express)
 - Resolve a limitação fundamental do Instagram (só 1 link clicável na bio, nenhum link clicável em legendas)
@@ -331,6 +343,16 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - HTML escape em todos os campos — proteção XSS
 - Mobile-first, 2 temas (rosa beleza / laranja geral)
 - URL pública: `shopee-bot-production-e39e.up.railway.app`
+
+### v3.2 (25/05/2026 noite) — **EM PRODUÇÃO** ✅
+- Tudo da v3.1 +
+- **Horários separados por canal** (feedback de clientes — antes era spam: 5 disparos WA/dia, 5 destaques IG/dia em cada perfil)
+- **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos cada = 10/dia (era 25/dia)
+- **IG @byrosanamatias** (beleza): 1x/dia às 20h (horário de pico de engajamento em beleza)
+- **IG @achadinhosdaroh01** (geral): mantém 5x/dia (8h · 11h · 14h · 17h · 20h)
+- Refatoração do `index.js`: `cicloEnvio()` virou `cicloWhatsApp()` + `cicloInstagram(perfil)` independentes
+- 3 CronJobs separados, cada canal com try/catch próprio (uma falha não derruba os outros)
+- Feed cache continua compartilhado (TTL 6h) — não baixa feed toda hora mesmo com mais cron jobs
 
 ---
 
