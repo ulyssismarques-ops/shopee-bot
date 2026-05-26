@@ -20,7 +20,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.5 (Chamadas contextuais nas mensagens — "Copa do Mundo vem aí!")
+**Versão atual:** v3.6 (Preferência por produtos nacionais)
 
 ---
 
@@ -370,7 +370,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - `shopee.js::filtrarQualidade()` ordena por score (era shuffle aleatório)
 - Blocklist refinada (acessórios universais de carro passam, modelos específicos bloqueiam)
 
-### v3.5 (26/05/2026 noite) — **EM PRODUÇÃO** ✅
+### v3.5 (26/05/2026 noite)
 - Tudo da v3.4 +
 - **Chamadas contextuais nas mensagens** (feedback: "se tiver no anúncio por essas exclamações, tipo 'copa do mundo vem aí'")
 - Nova função `gerarChamada(produto, canal)` em `tendencias.js`:
@@ -390,6 +390,17 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - Manta Inverno → "❄️ INVERNO VEM AÍ! Esquenta com essa promo 🔥"
   - Caneta genérica → "🔥 OFERTA IMPERDÍVEL 🔥" (default)
 - Produto cuja categoria/estética não bate evento próximo cai no default — mantém coerência
+
+### v3.6 (26/05/2026 noite tarde) — **EM PRODUÇÃO** ✅
+- Tudo da v3.5 +
+- **Preferência por produtos nacionais** (feedback: "preferência pra produtos que não são compras internacionais, compras internacionais só em caso de não achar nada interessante no Brasil, ou se tiver algo muito top bombando lá fora")
+- `parsearLinha` agora captura o campo `cb_option` do feed → identifica se é cross-border (internacional) ou não
+- `pontuarProduto` aplica **-30 pontos** pra produtos internacionais
+- Resultado:
+  - Produtos similares: o nacional **sempre ganha** (-30 desempata)
+  - Internacional "muito top" (com boost de evento +50 ou tendência +30): **ainda pode vencer**
+  - Internacional comum (sem boost): cai muito no ranking, dificilmente é escolhido
+- `filtrarQualidade` agora loga `🇧🇷 Nacionais: X | 🌏 Internacionais: Y` antes do top 5
 
 ---
 

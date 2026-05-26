@@ -190,8 +190,10 @@ function estacaoAtual(hoje = new Date()) {
  *  • 0-30 pontos: desconto (20% = 10, 50%+ = 30)
  *  • +30 pontos: nome bate com lista de tendências gerais
  *  • +50 pontos: nome bate com evento ≤ 14 dias
- *  • +25 pontos: nome bate com evento 15-30 dias
+ *  • +25 pontos: nome bate com evento 15-21 dias
  *  • +15 pontos: nome bate com estação atual
+ *  • -30 pontos: produto é compra internacional (v3.6) — prefere nacional,
+ *               internacional só compete se tiver boost forte de evento/trending
  */
 function pontuarProduto(produto, hoje = new Date()) {
   let score = 0;
@@ -208,24 +210,28 @@ function pontuarProduto(produto, hoje = new Date()) {
     score += 30;
   }
 
-  // Boost evento — campanha começa 21 dias antes (vira "vem aí"),
-  // peaks nos últimos 14 dias (boost máximo), some quando passa.
-  // Checa TODOS os eventos do range, não só o mais próximo.
+  // Boost evento — campanha começa 21 dias antes, peaks nos últimos 14
   let melhorBoostEvento = 0;
   for (const ev of CALENDARIO_BR) {
     const d = diasAteEvento(ev, hoje);
     if (d > 21) continue;
     const bate = ev.palavras.some(p => nome.includes(p));
     if (!bate) continue;
-    const boost = d <= 14 ? 50 : 25;  // 15-21d = 25, 1-14d = 50
+    const boost = d <= 14 ? 50 : 25;
     if (boost > melhorBoostEvento) melhorBoostEvento = boost;
   }
   score += melhorBoostEvento;
 
-  // Boost estação
+  // Boost estação atual
   const estacao = estacaoAtual(hoje);
   if (estacao && estacao.palavras.some(p => nome.includes(p))) {
     score += 15;
+  }
+
+  // Penalidade pra compra internacional (v3.6) — incentiva preferência nacional
+  // Internacional ainda pode vencer se bater evento (+50) ou tendência forte (+30)
+  if (produto.crossBorder) {
+    score -= 30;
   }
 
   return Math.round(score);

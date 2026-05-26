@@ -169,9 +169,21 @@ function parsearLinha(r) {
     linkAfiliado:  link,
     imagem:        r.image_link || r.image_link_3 || null,
     categoria1:    r.global_category1,
-    categoria2:    r.global_category2,   // novo (v3.3)
-    categoria3:    r.global_category3,   // novo (v3.3)
+    categoria2:    r.global_category2,
+    categoria3:    r.global_category3,
+    crossBorder:   ehInternacional(r.cb_option),  // novo (v3.6) — true se internacional
   };
+}
+
+// Identifica se o produto é compra internacional (cross-border).
+// Valores típicos do feed Shopee:
+//   "Non-Cross border" → vendido por loja BR, chega em 3-7 dias  → NACIONAL (false)
+//   "Cross-Border"     → vem da China/Ásia, chega em 30+ dias    → INTERNACIONAL (true)
+function ehInternacional(cbOption) {
+  if (!cbOption) return false;  // sem info, assume nacional
+  const v = String(cbOption).toLowerCase().trim();
+  if (v.includes('non')) return false;  // "non-cross border" = nacional
+  return v.includes('cross');
 }
 
 // Verifica se alguma das 3 categorias do produto bate com a blocklist
@@ -218,10 +230,15 @@ function filtrarQualidade(produtos) {
   );
 
   console.log(`   ✓ Combinado: ${base.length} produtos`);
+
+  // Contagem nacional vs internacional (v3.6)
+  const nacionais = base.filter(p => !p.crossBorder).length;
+  const internacionais = base.length - nacionais;
+  console.log(`   🇧🇷 Nacionais (Non-Cross): ${nacionais}  |  🌏 Internacionais: ${internacionais}`);
   console.log(`   ${descreverContexto()}`);
 
   // Pontua cada produto com base em qualidade + tendência + evento próximo + estação
-  // (v3.4) — substitui o shuffle aleatório por curadoria inteligente
+  // + penalidade pra produto internacional (v3.6)
   const pontuados = base.map(p => ({ ...p, score: pontuarProduto(p) }));
   pontuados.sort((a, b) => b.score - a.score);
 
