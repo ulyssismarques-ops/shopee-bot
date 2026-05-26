@@ -8,7 +8,8 @@
 
 Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Baixa feed CSV oficial de afiliados (100k+ produtos diários)
-- **Filtros rigorosos (v3.3):** nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, desconto ≥ 20% + blocklist de categorias (auto/ferramentas/foto) e palavras (modelos veículo, marcas chinesas)
+- **Curadoria inteligente por score (v3.4):** prioriza produtos por qualidade base + tendências do momento + **datas comemorativas próximas** (Copa, Namorados, Pais, Natal...) + **estação atual** (verão/inverno). Substitui o sort aleatório por sort baseado em score 0-200.
+- **Filtros rigorosos:** nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, desconto ≥ 20% + blocklist refinada (apenas modelos específicos de veículo, peças nicho, marcas chinesas obscuras — acessórios universais passam)
 - **Horários separados por canal** (v3.2):
   - **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos por disparo = 10 produtos/dia
   - **Instagram @byrosanamatias** (beleza): 1x/dia às 20h (horário de pico)
@@ -19,7 +20,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.3 (filtros de qualidade — adequa a tendência brasileira)
+**Versão atual:** v3.4 (Curadoria inteligente com calendário comercial BR)
 
 ---
 
@@ -45,6 +46,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 | `index.js` | Scheduler cron + orquestração do ciclo (WhatsApp + Instagram) + sobe landing page |
 | `whatsapp.js` | Baileys: conexão, QR, listagem de grupos, envio texto/imagem |
 | `shopee.js` | Download streaming do feed CSV, parsing, filtros, separação beleza/geral |
+| `tendencias.js` | **NOVO v3.4** — calendário comercial BR + estações + tendências + função `pontuarProduto()` |
 | `instagram.js` | Meta Graph API: publica em 2 perfis (beleza/geral) com Page Tokens |
 | `landingpage.js` | Servidor Express com `/beleza` e `/geral` — destaque + grid dos últimos 25 produtos + botão WhatsApp |
 | `mensagem.js` | Formato da mensagem padrão Rosana (WhatsApp) |
@@ -354,18 +356,31 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - 3 CronJobs separados, cada canal com try/catch próprio (uma falha não derruba os outros)
 - Feed cache continua compartilhado (TTL 6h) — não baixa feed toda hora mesmo com mais cron jobs
 
-### v3.3 (26/05/2026 manhã) — **EM PRODUÇÃO** ✅
+### v3.3 (26/05/2026 manhã)
 - Tudo da v3.2 +
-- **Filtros de qualidade rigorosos** (feedback de clientes: anúncios sem cara de tendência brasileira — peças de carro Spin 2013, marcas chinesas obscuras tipo LAIKOU/YESOP/BAMOER)
-- **Thresholds aumentados:**
-  - Nota mínima: 4.0 → **4.5**
-  - Shop rating mínimo: ø → **4.7** (novo filtro de loja confiável)
-  - Preço: R$ 5-300 → **R$ 10-150** (foco em achadinho de impulso)
-  - Desconto bom: 15% → **20%**
-- **Blocklist de categorias** (`global_category1/2/3`): Automotive, Motorcycle, Tools, Hardware, Industrial, Photography, Pro Audio, Cosplay, etc.
-- **Blocklist de palavras no nome:** modelos de carro (Spin, Onix, Civic, Palio, HB20…), peças (retrovisor, apoio braço…), marcas chinesas obscuras (LAIKOU, YESOP, BAMOER…), estilos estrangeiros ("estilo chinês"), foto nicho ("fundo fotográfico")
-- `parsearLinha` agora captura `categoria2` e `categoria3` também (era só `categoria1`)
-- Esperamos volume ~5-10x menor de produtos no funil — porém de qualidade real brasileira
+- **Filtros de qualidade rigorosos** (feedback de clientes: anúncios sem cara de tendência brasileira)
+- Thresholds aumentados: nota 4.5, shop rating 4.7, preço R$ 10-150, desconto 20%
+- Blocklist de categorias + palavras
+- `parsearLinha` agora captura `categoria2` e `categoria3`
+
+### v3.4 (26/05/2026 tarde) — **EM PRODUÇÃO** ✅
+- Tudo da v3.3 +
+- **Curadoria inteligente por score** (feedback de clientes: anúncios precisam ser "inteligentes", aproveitar feriados, estações, eventos)
+- Novo módulo `tendencias.js`:
+  - **Calendário comercial BR** com 14 datas (Carnaval, Mães, Namorados, Copa do Mundo 2026, Festa Junina, Pais, Crianças, Black Friday, Natal, etc.) + palavras-chave por data
+  - **Estações no hemisfério sul** (verão/outono/inverno/primavera) + palavras de cada uma
+  - **Lista de tendências gerais BR** (fone bluetooth, air fryer, skincare, garrafinha, suporte celular, etc.)
+- Função `pontuarProduto(produto)` retorna score 0-200:
+  - 0-25 pts: nota do produto
+  - 0-25 pts: shop rating
+  - 0-30 pts: desconto
+  - +30 pts: nome bate com tendência geral
+  - +50 pts: nome bate com evento ≤ 14 dias / +25 pts: evento 15-30 dias
+  - +15 pts: nome bate com estação atual
+- `shopee.js::filtrarQualidade()` agora ordena por score (era shuffle aleatório)
+- **Blocklist refinada:** removeu palavras genéricas como "retrovisor" (pode ser universal), mantém apenas modelos específicos (Spin, Onix, Civic...) — acessórios universais de carro (suporte celular, aromatizador) PASSAM
+- Categorias bloqueadas reduzidas: removeu `automotive` (acessórios universais OK), mantém `industrial`, `pro audio`, `photography`, etc.
+- Volume: pode cair um pouco mais, mas produtos selecionados têm chance MUITO maior de viralizar
 
 ---
 

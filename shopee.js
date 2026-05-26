@@ -2,6 +2,7 @@ const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const fs = require('fs');
 const path = require('path');
+const { pontuarProduto, descreverContexto } = require('./tendencias');
 
 const FEED_URL = process.env.SHOPEE_FEED_URL || '';
 const CACHE_PATH = '/data/feed_cache.csv';
@@ -15,35 +16,45 @@ const MAX_PRECO       = 150;   // antes 300 — foco em achadinho de impulso
 const DESCONTO_BOM    = 20;    // antes 15 — só destaca quem tem oferta real
 
 // Categorias bloqueadas — checa em global_category1/2/3 (case-insensitive, substring)
-// Inclui: peças de carro/moto, ferramentas/construção, hobby/foto/áudio nicho
+// IMPORTANTE: NÃO bloqueamos "automotive" mais — queremos acessórios universais de carro
+// (suporte celular, aromatizador, capa volante). Modelos específicos são pegos pelas palavras.
 const CATEGORIAS_BLOQUEADAS = [
-  'automotive', 'motorcycle', 'auto parts', 'car care', 'tire', 'tyre',
-  'tools', 'home improvement', 'hardware', 'electrical equipment',
-  'industrial', 'commercial', 'office equipment',
-  'cameras & drones', 'photography', 'pro audio', 'musical instrument',
-  'collectibles', 'cosplay', 'gaming chair',
+  // Construção pesada (NÃO confundir com decoração)
+  'home improvement', 'hardware', 'building supplies',
+  // Industrial e profissional
+  'industrial', 'commercial', 'office equipment', 'medical',
+  // Hobby muito nicho
+  'cameras & drones', 'photography', 'pro audio',
+  'musical instrument', 'collectibles', 'cosplay',
 ];
 
 // Palavras bloqueadas no nome do produto (case-insensitive, substring)
-// Foco: modelos específicos de veículo, peças, marcas chinesas obscuras, foto nicho
+// Foco principal: MODELOS específicos de veículo (Spin 2013, etc) — acessórios
+// universais (suporte celular, aromatizador) PASSAM e podem ser anunciados.
 const PALAVRAS_BLOQUEADAS = [
-  // Peças de veículo (genéricas)
-  'retrovisor', 'lanterna automotiva', 'farol automotivo',
-  'apoio braço', 'apoio de braço', 'capa banco', 'capa de banco',
-  'tapete carro', 'tapete automotivo',
-  // Modelos de carro brasileiros
-  'spin ', 'onix ', 'civic ', 'corolla ', 'palio ', 'siena ', 'gol g4',
-  'gol g5', 'gol g6', 'hb20 ', 'creta ', 'tracker ', 'compass ',
-  'kicks ', 'duster ', 'ecosport ', 'fiesta ', 'ka ',
+  // Modelos de carro brasileiros — bloqueia "para Spin 2013", "compatível Onix", etc.
+  // Note o espaço no fim — evita falsos positivos tipo "kit" (bloqueado por "ka ")
+  ' spin ', ' onix ', ' civic ', ' corolla ', ' palio ', ' siena ',
+  'gol g4', 'gol g5', 'gol g6', ' hb20 ', ' creta ', ' tracker ',
+  ' compass ', ' kicks ', ' duster ', ' ecosport ', ' fiesta ',
+  ' uno ', ' celta ', ' prisma ',
   // Modelos de moto
   'cb 500', 'cb 600', 'cg 125', 'cg 150', 'cg 160', 'biz 125', 'biz 110',
-  'gs 650', 'f800', 'cbr ', 'twister ',
-  // Foto/hobby nicho
-  'fundo fotográfico', 'fundo fotografico', 'tripé profissional', 'cosplay', 'anime',
-  // Marcas chinesas obscuras e termos estrangeiros que não vendem no BR
-  'whitening', 'laikou', 'yesop', 'bamoer', 'kaukko',
-  // Estilos estrangeiros explícitos
-  'estilo chinês', 'estilo chines', 'estilo japonês', 'estilo japones',
+  'gs 650', 'f800', ' cbr ', ' twister ',
+  // Padrão "ano modelo" tipo 2013/2014 indica peça específica
+  // (não bloqueamos só o ano — pode ser "kit ferramenta 2024")
+  // Peças específicas de moto/carro (NÃO universais)
+  'pastilha freio', 'pastilha de freio', 'rolamento roda',
+  'amortecedor traseiro', 'amortecedor dianteiro',
+  'mola suspensão', 'bomba óleo', 'embreagem',
+  // Foto/hobby super nicho (acessório de fotógrafo profissional)
+  'fundo fotográfico', 'fundo fotografico', 'tripé profissional',
+  'softbox', 'ringlight profissional', 'cosplay', 'figure action',
+  // Marcas chinesas obscuras
+  'laikou', 'yesop', 'bamoer', 'kaukko', 'rolanstar',
+  // Termos estrangeiros que não vendem bem no BR
+  'whitening', 'estilo chinês', 'estilo chines',
+  'estilo japonês', 'estilo japones', 'estilo coreano',
 ];
 
 async function baixarFeedStreaming() {
@@ -207,23 +218,20 @@ function filtrarQualidade(produtos) {
   );
 
   console.log(`   ✓ Combinado: ${base.length} produtos`);
+  console.log(`   ${descreverContexto()}`);
 
-  const comDesconto = base.filter(p => p.desconto >= DESCONTO_BOM);
-  const semDesconto = base.filter(p => p.desconto < DESCONTO_BOM);
+  // Pontua cada produto com base em qualidade + tendência + evento próximo + estação
+  // (v3.4) — substitui o shuffle aleatório por curadoria inteligente
+  const pontuados = base.map(p => ({ ...p, score: pontuarProduto(p) }));
+  pontuados.sort((a, b) => b.score - a.score);
 
-  console.log(`   • Com desconto ≥${DESCONTO_BOM}%: ${comDesconto.length}`);
-  console.log(`   • Sem desconto:           ${semDesconto.length}`);
+  // Log dos top 5 pra debug
+  console.log(`   🏆 Top 5 por score:`);
+  pontuados.slice(0, 5).forEach((p, i) => {
+    console.log(`      ${i + 1}. [${p.score}] ${p.nome.slice(0, 60)}`);
+  });
 
-  const emba = (arr) => {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  };
-
-  return [...emba(comDesconto), ...emba(semDesconto)];
+  return pontuados;
 }
 
 const PALAVRAS_BELEZA = [
