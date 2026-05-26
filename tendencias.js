@@ -241,11 +241,171 @@ function descreverContexto(hoje = new Date()) {
   return partes.join(' | ');
 }
 
+// ─── CHAMADAS CONTEXTUAIS POR CANAL ──────────────────────────────────────────
+// Quando um produto bate com evento próximo, substituímos a abertura padrão da
+// mensagem por uma "chamada" contextual. Cada canal tem um tom próprio.
+// Canais: 'whatsapp' | 'geral' (IG @achadinhosdaroh01) | 'beleza' (IG @byrosanamatias)
+const CHAMADAS_EVENTO = {
+  'Volta às aulas': {
+    whatsapp: '📚 Volta às aulas chegou! Achadinho indispensável 🔥',
+    geral:    '📚 Volta às aulas! Achadinho que toda mãe ama:',
+    beleza:   '✨ Volta às aulas com beleza — visual de outono:',
+  },
+  'Carnaval': {
+    whatsapp: '🎭 Carnaval tá chegando! Confere essa promo 🔥',
+    geral:    '🎭 Bloquinho na rua, achadinho na mão!',
+    beleza:   '✨ Carnaval glow! Tudo pra você arrasar:',
+  },
+  'Dia da Mulher': {
+    whatsapp: '👑 Dia da Mulher chegando — você merece 🔥',
+    geral:    '👑 Pra toda mulher incrível — achadinho perfeito:',
+    beleza:   '💄 Dia da Mulher chegando! Autocuidado é tudo:',
+  },
+  'Dia das Mães': {
+    whatsapp: '💝 Dia das Mães em breve! Achei o presente 🔥',
+    geral:    '💝 Surpreenda sua mãe — achadinho perfeito:',
+    beleza:   '💖 Pro presente de Mãe — beleza com amor:',
+  },
+  'Dia dos Namorados': {
+    whatsapp: '💕 Dia dos Namorados vem aí! Olha que ideia 🔥',
+    geral:    '💕 Bora surpreender o amor — achadinho perfeito:',
+    beleza:   '✨ Brilhar pro seu amor — kit beleza pra noite especial:',
+  },
+  'Copa do Mundo 2026': {
+    whatsapp: '🏆 COPA DO MUNDO VEM AÍ! Achadinho de torcedor 🇧🇷',
+    geral:    '🏆 Brasil na Copa 2026 — torça com estilo!',
+    beleza:   '🟢🟡 Copa chegando — look verde-amarelo perfeito:',
+  },
+  'São João / Festa Junina': {
+    whatsapp: '🌽 São João tá chegando! Olha essa 🔥',
+    geral:    '🔥 Festa Junina à vista! Achadinho típico:',
+    beleza:   '🌽 Look junino arretado! Beleza pra brilhar:',
+  },
+  'Dia dos Pais': {
+    whatsapp: '👨 Dia dos Pais vem aí! Presente que arrasa 🔥',
+    geral:    '👔 Pai merece — achadinho que vai surpreender:',
+    beleza:   '✨ Pra ele se cuidar também — beleza masculina:',
+  },
+  'Primavera / Independência': {
+    whatsapp: '🌸 Primavera chegando! Achadinho fresco 🔥',
+    geral:    '🌸 Primavera no ar — bora florir tudo:',
+    beleza:   '🌸 Pele radiante de primavera — confere:',
+  },
+  'Dia do Cliente': {
+    whatsapp: '💸 Dia do Cliente! Desconto especial 🔥',
+    geral:    '💸 É o seu dia! Achadinho com mega desconto:',
+    beleza:   '💄 Dia do Cliente — beleza com super preço:',
+  },
+  'Dia das Crianças': {
+    whatsapp: '🎁 Dia das Crianças em breve! Achei 🔥',
+    geral:    '🎉 Bora alegrar a criançada — olha essa:',
+    beleza:   '👧 Achadinho pra pequena diva — confira:',
+  },
+  'Dia dos Professores': {
+    whatsapp: '🍎 Dia dos Professores vem aí! Presente especial 🔥',
+    geral:    '🍎 Pro mestre que muda vidas — olha esse:',
+    beleza:   '✨ Pra professora se cuidar — kit autocuidado:',
+  },
+  'Black Friday': {
+    whatsapp: '🛒 BLACK FRIDAY CHEGANDO! Olha esse preço 🔥',
+    geral:    '🛒 Black Friday Antecipada — não perde essa!',
+    beleza:   '🛒 Black Friday começou! Beleza com mega desconto:',
+  },
+  'Natal': {
+    whatsapp: '🎄 Natal vem aí! Presente perfeito 🔥',
+    geral:    '🎄 Bora preparar o Natal — achadinho natalino:',
+    beleza:   '🎄 Natal chegando — kit beleza pra brilhar:',
+  },
+  'Ano Novo': {
+    whatsapp: '✨ Ano Novo vem aí! Bora começar bem 🔥',
+    geral:    '🥂 Réveillon chegando — branco de arrasar:',
+    beleza:   '💫 Ano Novo vem aí! Brilhar na virada:',
+  },
+};
+
+const CHAMADAS_ESTACAO = {
+  verao: {
+    whatsapp: '☀️ Verão tá chegando! Achadinho fresquinho 🔥',
+    geral:    '🏖️ Verão à vista — esse vai ser sucesso:',
+    beleza:   '☀️ Verão chegou! Pele protegida e brilhante:',
+  },
+  outono: {
+    whatsapp: '🍂 Outono no clima! Achadinho aconchegante 🔥',
+    geral:    '🍂 Mudança de estação — bora se preparar:',
+    beleza:   '🍂 Outono: pele precisa de hidratação extra:',
+  },
+  inverno: {
+    whatsapp: '❄️ INVERNO VEM AÍ! Esquenta com essa promo 🔥',
+    geral:    '❄️ Frio chegando — aconchego garantido:',
+    beleza:   '❄️ Inverno seca a pele — hidrate-se com:',
+  },
+  primavera: {
+    whatsapp: '🌸 Primavera vem aí! Achadinho fresco 🔥',
+    geral:    '🌸 Primavera no ar — bora florir:',
+    beleza:   '🌸 Primavera chegou! Pele radiante:',
+  },
+};
+
+const CHAMADAS_TRENDING = {
+  whatsapp: '🔥 Achadinho que tá BOMBANDO — corre 🔥',
+  geral:    '✨ O achadinho que tá em todo lugar:',
+  beleza:   '✨ O queridinho do momento:',
+};
+
+const CHAMADAS_DEFAULT = {
+  whatsapp: '🔥 OFERTA IMPERDÍVEL 🔥',
+  geral:    '🔥 OFERTA IMPERDÍVEL!',
+  beleza:   '✨ Achado do dia!',
+};
+
+/**
+ * Gera a linha de abertura ("chamada") contextual baseada no produto e canal.
+ * Prioridade:
+ *  1. Evento comercial ≤ 30 dias (se nome do produto bater com palavras do evento)
+ *  2. Estação atual OU próxima (até 60 dias) — assim "manta inverno" em maio
+ *     ainda dispara "INVERNO VEM AÍ" mesmo a estação atual sendo outono
+ *  3. Tendência geral (se nome bate com TENDENCIAS_GERAIS)
+ *  4. Fallback: chamada padrão do canal
+ *
+ * canal: 'whatsapp' | 'geral' | 'beleza'
+ */
+function gerarChamada(produto, canal = 'whatsapp', hoje = new Date()) {
+  const nome = (produto.nome || '').toLowerCase();
+
+  // 1. Evento ≤ 30 dias
+  for (const ev of CALENDARIO_BR) {
+    const d = diasAteEvento(ev, hoje);
+    if (d > 30) continue;
+    if (!ev.palavras.some(p => nome.includes(p))) continue;
+    const chamada = CHAMADAS_EVENTO[ev.nome]?.[canal];
+    if (chamada) return chamada;
+  }
+
+  // 2. Estação atual ou próxima (até 2 meses pra frente)
+  const mes = hoje.getMonth() + 1;
+  const mesesRelevantes = [mes, (mes % 12) + 1, ((mes + 1) % 12) + 1];
+  for (const [estNome, info] of Object.entries(ESTACOES_BR)) {
+    if (!info.palavras.some(p => nome.includes(p))) continue;
+    if (!info.meses.some(m => mesesRelevantes.includes(m))) continue;
+    const chamada = CHAMADAS_ESTACAO[estNome]?.[canal];
+    if (chamada) return chamada;
+  }
+
+  // 3. Tendência geral
+  if (TENDENCIAS_GERAIS.some(t => nome.includes(t))) {
+    return CHAMADAS_TRENDING[canal];
+  }
+
+  // 4. Default
+  return CHAMADAS_DEFAULT[canal];
+}
+
 module.exports = {
   pontuarProduto,
   eventoMaisProximo,
   estacaoAtual,
   descreverContexto,
+  gerarChamada,
   CALENDARIO_BR,
   TENDENCIAS_GERAIS,
 };

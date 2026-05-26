@@ -20,7 +20,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.4 (Curadoria inteligente com calendário comercial BR)
+**Versão atual:** v3.5 (Chamadas contextuais nas mensagens — "Copa do Mundo vem aí!")
 
 ---
 
@@ -363,24 +363,33 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Blocklist de categorias + palavras
 - `parsearLinha` agora captura `categoria2` e `categoria3`
 
-### v3.4 (26/05/2026 tarde) — **EM PRODUÇÃO** ✅
+### v3.4 (26/05/2026 tarde)
 - Tudo da v3.3 +
-- **Curadoria inteligente por score** (feedback de clientes: anúncios precisam ser "inteligentes", aproveitar feriados, estações, eventos)
-- Novo módulo `tendencias.js`:
-  - **Calendário comercial BR** com 14 datas (Carnaval, Mães, Namorados, Copa do Mundo 2026, Festa Junina, Pais, Crianças, Black Friday, Natal, etc.) + palavras-chave por data
-  - **Estações no hemisfério sul** (verão/outono/inverno/primavera) + palavras de cada uma
-  - **Lista de tendências gerais BR** (fone bluetooth, air fryer, skincare, garrafinha, suporte celular, etc.)
-- Função `pontuarProduto(produto)` retorna score 0-200:
-  - 0-25 pts: nota do produto
-  - 0-25 pts: shop rating
-  - 0-30 pts: desconto
-  - +30 pts: nome bate com tendência geral
-  - +50 pts: nome bate com evento ≤ 14 dias / +25 pts: evento 15-30 dias
-  - +15 pts: nome bate com estação atual
-- `shopee.js::filtrarQualidade()` agora ordena por score (era shuffle aleatório)
-- **Blocklist refinada:** removeu palavras genéricas como "retrovisor" (pode ser universal), mantém apenas modelos específicos (Spin, Onix, Civic...) — acessórios universais de carro (suporte celular, aromatizador) PASSAM
-- Categorias bloqueadas reduzidas: removeu `automotive` (acessórios universais OK), mantém `industrial`, `pro audio`, `photography`, etc.
-- Volume: pode cair um pouco mais, mas produtos selecionados têm chance MUITO maior de viralizar
+- **Curadoria inteligente por score** (feedback: anúncios precisam ser "inteligentes", aproveitar feriados, estações, eventos)
+- Novo módulo `tendencias.js` com calendário comercial BR (14 datas), estações, lista de tendências gerais e função `pontuarProduto()` retornando score 0-200
+- `shopee.js::filtrarQualidade()` ordena por score (era shuffle aleatório)
+- Blocklist refinada (acessórios universais de carro passam, modelos específicos bloqueiam)
+
+### v3.5 (26/05/2026 noite) — **EM PRODUÇÃO** ✅
+- Tudo da v3.4 +
+- **Chamadas contextuais nas mensagens** (feedback: "se tiver no anúncio por essas exclamações, tipo 'copa do mundo vem aí'")
+- Nova função `gerarChamada(produto, canal)` em `tendencias.js`:
+  - Verifica se produto bate com evento próximo (≤ 30 dias) → retorna chamada do evento
+  - Senão, verifica estação atual OU próxima (2 meses pra frente) → chamada de estação
+  - Senão, verifica tendência geral → chamada de trending
+  - Senão, chamada padrão "🔥 OFERTA IMPERDÍVEL"
+- **3 tons por canal** (cada evento/estação tem 3 variações):
+  - `whatsapp`: tom direto, exclamativo, com 🔥
+  - `geral` (@achadinhosdaroh01): tom conversacional, "bora", "achadinho"
+  - `beleza` (@byrosanamatias): foco em estética/autocuidado, mesmo em eventos não-beleza
+- Mapeamento completo: 14 eventos + 4 estações + trending + default = ~57 variações de chamada
+- `mensagem.js` (WhatsApp) e `instagram.js` (ambos perfis) usam `gerarChamada()` na abertura
+- Exemplos reais (hoje, 26/05/2026):
+  - Cooler Brasil → "🏆 COPA DO MUNDO VEM AÍ! Achadinho de torcedor 🇧🇷"
+  - Kit Casal → "💕 Dia dos Namorados vem aí! Olha que ideia 🔥"
+  - Manta Inverno → "❄️ INVERNO VEM AÍ! Esquenta com essa promo 🔥"
+  - Caneta genérica → "🔥 OFERTA IMPERDÍVEL 🔥" (default)
+- Produto cuja categoria/estética não bate evento próximo cai no default — mantém coerência
 
 ---
 

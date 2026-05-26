@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { salvarProdutoPostado } = require('./historico');
+const { gerarChamada } = require('./tendencias');
 
 const BASE_URL = 'https://graph.facebook.com/v19.0';
 
@@ -35,9 +36,10 @@ async function postarNoInstagram(produto, perfil = 'geral') {
     return;
   }
 
+  const chamada = gerarChamada(produto, perfil);
   const caption = perfil === 'beleza'
-    ? formatarLegendaBeleza(produto.nome, produto.precoAtual, produto.precoOriginal)
-    : formatarLegendaGeral(produto.nome, produto.precoAtual, produto.precoOriginal);
+    ? formatarLegendaBeleza(produto.nome, produto.precoAtual, produto.precoOriginal, chamada)
+    : formatarLegendaGeral(produto.nome, produto.precoAtual, produto.precoOriginal, chamada);
 
   try {
     const { data: container } = await axios.post(
@@ -68,16 +70,17 @@ async function postarNoInstagram(produto, perfil = 'geral') {
 }
 
 // Legenda para @byrosanamatias — estilo beleza
-// Todos os links (produto + WhatsApp) ficam na landing page apontada pela bio,
+// Linha de abertura é a "chamada" contextual (Copa, Namorados, estação, etc).
+// Links (produto + WhatsApp) ficam na landing page apontada pela bio,
 // porque Instagram nunca torna links clicáveis em captions.
-function formatarLegendaBeleza(nome, precoAtual, precoOriginal) {
+function formatarLegendaBeleza(nome, precoAtual, precoOriginal, chamada) {
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
     : 'Por apenas ';
 
   return (
-    `✨ Achado do dia!\n\n` +
+    `${chamada}\n\n` +
     `${nome}\n\n` +
     `💰 ${linhaOrig}R$ ${preco}\n\n` +
     `👆 Toca no link da BIO pra comprar\n` +
@@ -89,14 +92,14 @@ function formatarLegendaBeleza(nome, precoAtual, precoOriginal) {
 }
 
 // Legenda para @achadinhosdaroh01 — estilo promoção
-function formatarLegendaGeral(nome, precoAtual, precoOriginal) {
+function formatarLegendaGeral(nome, precoAtual, precoOriginal, chamada) {
   const preco     = fmtBRL(precoAtual);
   const linhaOrig = precoOriginal
     ? `De R$ ${fmtBRL(precoOriginal)} por apenas `
     : 'Por apenas ';
 
   return (
-    `🔥 OFERTA IMPERDÍVEL!\n\n` +
+    `${chamada}\n\n` +
     `🎁 ${nome}\n\n` +
     `💥 ${linhaOrig}R$ ${preco}\n\n` +
     `👆 Toca no link da BIO pra comprar\n` +
