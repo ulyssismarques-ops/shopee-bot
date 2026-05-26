@@ -20,7 +20,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.6 (Preferência por produtos nacionais)
+**Versão atual:** v3.7 (Badge "Envio Rápido" na landing page)
 
 ---
 
@@ -391,16 +391,24 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - Caneta genérica → "🔥 OFERTA IMPERDÍVEL 🔥" (default)
 - Produto cuja categoria/estética não bate evento próximo cai no default — mantém coerência
 
-### v3.6 (26/05/2026 noite tarde) — **EM PRODUÇÃO** ✅
+### v3.6 (26/05/2026 noite tarde)
 - Tudo da v3.5 +
-- **Preferência por produtos nacionais** (feedback: "preferência pra produtos que não são compras internacionais, compras internacionais só em caso de não achar nada interessante no Brasil, ou se tiver algo muito top bombando lá fora")
-- `parsearLinha` agora captura o campo `cb_option` do feed → identifica se é cross-border (internacional) ou não
-- `pontuarProduto` aplica **-30 pontos** pra produtos internacionais
-- Resultado:
-  - Produtos similares: o nacional **sempre ganha** (-30 desempata)
-  - Internacional "muito top" (com boost de evento +50 ou tendência +30): **ainda pode vencer**
-  - Internacional comum (sem boost): cai muito no ranking, dificilmente é escolhido
-- `filtrarQualidade` agora loga `🇧🇷 Nacionais: X | 🌏 Internacionais: Y` antes do top 5
+- **Preferência por produtos nacionais** (feedback: produtos BR chegam em 3-7 dias, internacional 30+ dias)
+- `parsearLinha` captura `cb_option` do feed → identifica se é cross-border (internacional)
+- `pontuarProduto` aplica **-30 pontos** pra internacional
+- Internacional ainda pode vencer se "muito top" (evento +50 ou trending +30 compensam)
+- `filtrarQualidade` loga contagem nacional vs internacional
+
+### v3.7 (26/05/2026 noite) — **EM PRODUÇÃO** ✅
+- Tudo da v3.6 +
+- **Badge "🇧🇷 Envio Rápido" na landing page** — destaque visual pra produtos nacionais (feedback: "isso, coloca envio rapido .. muito bom com destaque")
+- `historico.js::salvarProdutoPostado` agora persiste o campo `crossBorder`
+- `landingpage.js` mostra 3 elementos visuais quando `crossBorder === false`:
+  1. **Card destaque** — Badge verde-amarelo "🇧🇷 ENVIO RÁPIDO" no canto superior direito da foto
+  2. **Card destaque** — Faixa verde-amarela "🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias" logo acima do nome
+  3. **Cards do grid** — Bandeirinha 🇧🇷 pequena no canto da foto (estilo "selo")
+- Internacionais não mostram badge (sem feedback negativo, apenas ausência)
+- Cores das gradientes seguem a bandeira do Brasil: verde #009b3a → amarelo #ffd700
 
 ---
 

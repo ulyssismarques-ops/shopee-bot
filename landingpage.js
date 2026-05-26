@@ -54,13 +54,22 @@ function renderCardDestaque(p, cor) {
   const badgeDesc = desconto
     ? `<div class="desc-tag">-${desconto}%</div>`
     : '';
+  // Badge "Envio rápido" só pra produto nacional (não cross-border)
+  const badgeBR = p.crossBorder === false
+    ? `<div class="badge-br">🇧🇷 ENVIO RÁPIDO</div>`
+    : '';
+  const stripBR = p.crossBorder === false
+    ? `<div class="strip-br">🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias</div>`
+    : '';
   return `
     <div class="featured-card">
       <div class="featured-photo">
         ${badgeDesc}
+        ${badgeBR}
         <img src="${esc(p.imagem)}" alt="${esc(p.nome)}" onerror="this.style.display='none'">
       </div>
       <div class="featured-info">
+        ${stripBR}
         <div class="featured-name">${esc(p.nome)}</div>
         ${precoOrig}
         <div class="featured-price-new" style="color:${cor}">R$ ${esc(fmtBRL(p.precoAtual))}</div>
@@ -77,10 +86,14 @@ function renderCardGrid(p, cor) {
   const badgeDesc = desconto
     ? `<div class="desc-sm">-${desconto}%</div>`
     : '';
+  const flagBR = p.crossBorder === false
+    ? `<div class="flag-sm" title="Envio rápido nacional">🇧🇷</div>`
+    : '';
   return `
     <a href="${esc(p.linkAfiliado)}" class="grid-card" target="_blank" rel="noopener">
       <div class="grid-photo">
         ${badgeDesc}
+        ${flagBR}
         <img src="${esc(p.imagem)}" alt="${esc(p.nome)}" loading="lazy" onerror="this.style.display='none'">
       </div>
       <div class="grid-info">
@@ -204,6 +217,33 @@ function renderPagina(categoria) {
     z-index: 2;
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
   }
+  /* Badge "Envio Rápido" — produto nacional (não cross-border) */
+  .badge-br {
+    position: absolute; top: 12px; right: 12px;
+    background: linear-gradient(135deg, #009b3a 0%, #ffd700 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 155, 58, 0.4);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  /* Faixa abaixo da foto, dentro do card de destaque */
+  .strip-br {
+    background: linear-gradient(90deg, #009b3a 0%, #ffd700 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 10px;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    box-shadow: 0 2px 6px rgba(0, 155, 58, 0.25);
+  }
   .featured-info { padding: 14px 16px 18px; }
   .featured-name { font-size: 14px; font-weight: 600; line-height: 1.35; margin-bottom: 8px; }
   .featured-price-old { text-decoration: line-through; color: #999; font-size: 12px; }
@@ -253,6 +293,17 @@ function renderPagina(categoria) {
     font-size: 11px;
     font-weight: 700;
     z-index: 2;
+  }
+  /* Bandeira pequena no grid (produto nacional) */
+  .flag-sm {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 13px;
+    z-index: 2;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    line-height: 1;
   }
   .grid-info { padding: 8px 10px 12px; }
   .grid-name {
