@@ -8,7 +8,7 @@
 
 Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Baixa feed CSV oficial de afiliados (100k+ produtos diários)
-- Filtra produtos com nota ≥ 4.0, preço R$ 5-300, prioriza desconto ≥ 15%
+- **Filtros rigorosos (v3.3):** nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, desconto ≥ 20% + blocklist de categorias (auto/ferramentas/foto) e palavras (modelos veículo, marcas chinesas)
 - **Horários separados por canal** (v3.2):
   - **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos por disparo = 10 produtos/dia
   - **Instagram @byrosanamatias** (beleza): 1x/dia às 20h (horário de pico)
@@ -19,7 +19,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.2 (Horários separados por canal)
+**Versão atual:** v3.3 (filtros de qualidade — adequa a tendência brasileira)
 
 ---
 
@@ -210,7 +210,7 @@ Cada canal tem seu próprio cron e função. O feed CSV é compartilhado via cac
 
 ### Ciclo WhatsApp (12h e 20h)
 1. Verifica `/data/feed_cache.csv` — usa se < 6h
-2. Aplica filtros (nota ≥ 4.0, preço R$ 5-300, nome ≥ 10 chars)
+2. Aplica filtros rigorosos (v3.3): nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, nome ≥ 10 chars, **sem palavras/categorias bloqueadas** (peças veículo, marcas chinesas, foto/hobby)
 3. Filtra 5 que ainda não foram enviados (`historico.enviados`)
 4. Encurta links via TinyURL (fallback pro link feio se falhar)
 5. Pra cada produto: baixa imagem do CDN → envia foto + legenda no grupo
@@ -344,7 +344,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Mobile-first, 2 temas (rosa beleza / laranja geral)
 - URL pública: `shopee-bot-production-e39e.up.railway.app`
 
-### v3.2 (25/05/2026 noite) — **EM PRODUÇÃO** ✅
+### v3.2 (25/05/2026 noite)
 - Tudo da v3.1 +
 - **Horários separados por canal** (feedback de clientes — antes era spam: 5 disparos WA/dia, 5 destaques IG/dia em cada perfil)
 - **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos cada = 10/dia (era 25/dia)
@@ -353,6 +353,19 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Refatoração do `index.js`: `cicloEnvio()` virou `cicloWhatsApp()` + `cicloInstagram(perfil)` independentes
 - 3 CronJobs separados, cada canal com try/catch próprio (uma falha não derruba os outros)
 - Feed cache continua compartilhado (TTL 6h) — não baixa feed toda hora mesmo com mais cron jobs
+
+### v3.3 (26/05/2026 manhã) — **EM PRODUÇÃO** ✅
+- Tudo da v3.2 +
+- **Filtros de qualidade rigorosos** (feedback de clientes: anúncios sem cara de tendência brasileira — peças de carro Spin 2013, marcas chinesas obscuras tipo LAIKOU/YESOP/BAMOER)
+- **Thresholds aumentados:**
+  - Nota mínima: 4.0 → **4.5**
+  - Shop rating mínimo: ø → **4.7** (novo filtro de loja confiável)
+  - Preço: R$ 5-300 → **R$ 10-150** (foco em achadinho de impulso)
+  - Desconto bom: 15% → **20%**
+- **Blocklist de categorias** (`global_category1/2/3`): Automotive, Motorcycle, Tools, Hardware, Industrial, Photography, Pro Audio, Cosplay, etc.
+- **Blocklist de palavras no nome:** modelos de carro (Spin, Onix, Civic, Palio, HB20…), peças (retrovisor, apoio braço…), marcas chinesas obscuras (LAIKOU, YESOP, BAMOER…), estilos estrangeiros ("estilo chinês"), foto nicho ("fundo fotográfico")
+- `parsearLinha` agora captura `categoria2` e `categoria3` também (era só `categoria1`)
+- Esperamos volume ~5-10x menor de produtos no funil — porém de qualidade real brasileira
 
 ---
 

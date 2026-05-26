@@ -8,10 +8,43 @@ const CACHE_PATH = '/data/feed_cache.csv';
 const CACHE_META = '/data/feed_meta.json';
 const CACHE_TTL_HORAS = 6;
 
-const MIN_AVALIACAO   = 4.0;
-const MIN_PRECO       = 5;
-const MAX_PRECO       = 300;
-const DESCONTO_BOM    = 15;
+const MIN_AVALIACAO   = 4.5;   // antes 4.0 — filtros mais rigorosos (v3.3)
+const MIN_SHOP_RATING = 4.7;   // novo — lojas confiáveis filtram muitos chineses ruins
+const MIN_PRECO       = 10;    // antes 5 — abaixo disso geralmente é tranqueirinha
+const MAX_PRECO       = 150;   // antes 300 — foco em achadinho de impulso
+const DESCONTO_BOM    = 20;    // antes 15 — só destaca quem tem oferta real
+
+// Categorias bloqueadas — checa em global_category1/2/3 (case-insensitive, substring)
+// Inclui: peças de carro/moto, ferramentas/construção, hobby/foto/áudio nicho
+const CATEGORIAS_BLOQUEADAS = [
+  'automotive', 'motorcycle', 'auto parts', 'car care', 'tire', 'tyre',
+  'tools', 'home improvement', 'hardware', 'electrical equipment',
+  'industrial', 'commercial', 'office equipment',
+  'cameras & drones', 'photography', 'pro audio', 'musical instrument',
+  'collectibles', 'cosplay', 'gaming chair',
+];
+
+// Palavras bloqueadas no nome do produto (case-insensitive, substring)
+// Foco: modelos específicos de veículo, peças, marcas chinesas obscuras, foto nicho
+const PALAVRAS_BLOQUEADAS = [
+  // Peças de veículo (genéricas)
+  'retrovisor', 'lanterna automotiva', 'farol automotivo',
+  'apoio braço', 'apoio de braço', 'capa banco', 'capa de banco',
+  'tapete carro', 'tapete automotivo',
+  // Modelos de carro brasileiros
+  'spin ', 'onix ', 'civic ', 'corolla ', 'palio ', 'siena ', 'gol g4',
+  'gol g5', 'gol g6', 'hb20 ', 'creta ', 'tracker ', 'compass ',
+  'kicks ', 'duster ', 'ecosport ', 'fiesta ', 'ka ',
+  // Modelos de moto
+  'cb 500', 'cb 600', 'cg 125', 'cg 150', 'cg 160', 'biz 125', 'biz 110',
+  'gs 650', 'f800', 'cbr ', 'twister ',
+  // Foto/hobby nicho
+  'fundo fotográfico', 'fundo fotografico', 'tripé profissional', 'cosplay', 'anime',
+  // Marcas chinesas obscuras e termos estrangeiros que não vendem no BR
+  'whitening', 'laikou', 'yesop', 'bamoer', 'kaukko',
+  // Estilos estrangeiros explícitos
+  'estilo chinês', 'estilo chines', 'estilo japonês', 'estilo japones',
+];
 
 async function baixarFeedStreaming() {
   if (!FEED_URL) throw new Error('SHOPEE_FEED_URL não configurada no Railway');
@@ -125,27 +158,52 @@ function parsearLinha(r) {
     linkAfiliado:  link,
     imagem:        r.image_link || r.image_link_3 || null,
     categoria1:    r.global_category1,
+    categoria2:    r.global_category2,   // novo (v3.3)
+    categoria3:    r.global_category3,   // novo (v3.3)
   };
+}
+
+// Verifica se alguma das 3 categorias do produto bate com a blocklist
+function temCategoriaBloqueada(p) {
+  const cats = [p.categoria1, p.categoria2, p.categoria3]
+    .filter(Boolean)
+    .map((c) => String(c).toLowerCase());
+  return CATEGORIAS_BLOQUEADAS.some((bloqueada) =>
+    cats.some((c) => c.includes(bloqueada))
+  );
+}
+
+// Verifica se o nome do produto contém alguma palavra da blocklist
+function temPalavraBloqueada(nome) {
+  if (!nome) return false;
+  const n = nome.toLowerCase();
+  return PALAVRAS_BLOQUEADAS.some((p) => n.includes(p));
 }
 
 function filtrarQualidade(produtos) {
   // Conta quantos passam em CADA filtro individualmente (debug)
   const c = {
     nota:      produtos.filter(p => p.avaliacao >= MIN_AVALIACAO).length,
+    loja:      produtos.filter(p => p.shopRating >= MIN_SHOP_RATING).length,
     preco:     produtos.filter(p => p.precoAtual >= MIN_PRECO && p.precoAtual <= MAX_PRECO).length,
     nome:      produtos.filter(p => p.nome && p.nome.length >= 10).length,
+    naoBloq:   produtos.filter(p => !temPalavraBloqueada(p.nome) && !temCategoriaBloqueada(p)).length,
   };
   console.log(`   📈 Por filtro individual:`);
   console.log(`      • Nota ≥ ${MIN_AVALIACAO}:           ${c.nota}`);
+  console.log(`      • Shop rating ≥ ${MIN_SHOP_RATING}:    ${c.loja}`);
   console.log(`      • Preço R$${MIN_PRECO}-${MAX_PRECO}:       ${c.preco}`);
   console.log(`      • Nome ≥ 10 caracteres:    ${c.nome}`);
+  console.log(`      • Não bloqueados:          ${c.naoBloq}`);
 
   const base = produtos.filter(p =>
     p.avaliacao   >= MIN_AVALIACAO &&
+    p.shopRating  >= MIN_SHOP_RATING &&
     p.precoAtual  >= MIN_PRECO &&
     p.precoAtual  <= MAX_PRECO &&
-    p.nome &&
-    p.nome.length >= 10
+    p.nome && p.nome.length >= 10 &&
+    !temPalavraBloqueada(p.nome) &&
+    !temCategoriaBloqueada(p)
   );
 
   console.log(`   ✓ Combinado: ${base.length} produtos`);
