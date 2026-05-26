@@ -208,16 +208,16 @@ function pontuarProduto(produto, hoje = new Date()) {
     score += 30;
   }
 
-  // Boost evento — checa TODOS os eventos ≤ 30d (não só o mais próximo)
-  // e pega o maior boost. Assim Namorados (17d) ainda boosta produtos
-  // mesmo com Copa (15d) sendo o evento mais próximo.
+  // Boost evento — campanha começa 21 dias antes (vira "vem aí"),
+  // peaks nos últimos 14 dias (boost máximo), some quando passa.
+  // Checa TODOS os eventos do range, não só o mais próximo.
   let melhorBoostEvento = 0;
   for (const ev of CALENDARIO_BR) {
     const d = diasAteEvento(ev, hoje);
-    if (d > 30) continue;
+    if (d > 21) continue;
     const bate = ev.palavras.some(p => nome.includes(p));
     if (!bate) continue;
-    const boost = d <= 14 ? 50 : 25;
+    const boost = d <= 14 ? 50 : 25;  // 15-21d = 25, 1-14d = 50
     if (boost > melhorBoostEvento) melhorBoostEvento = boost;
   }
   score += melhorBoostEvento;
@@ -361,7 +361,8 @@ const CHAMADAS_DEFAULT = {
 /**
  * Gera a linha de abertura ("chamada") contextual baseada no produto e canal.
  * Prioridade:
- *  1. Evento comercial ≤ 30 dias (se nome do produto bater com palavras do evento)
+ *  1. Evento comercial ≤ 21 dias (campanha começa ~3 semanas antes,
+ *     intensifica nos últimos 14, some no dia seguinte automaticamente)
  *  2. Estação atual OU próxima (até 60 dias) — assim "manta inverno" em maio
  *     ainda dispara "INVERNO VEM AÍ" mesmo a estação atual sendo outono
  *  3. Tendência geral (se nome bate com TENDENCIAS_GERAIS)
@@ -372,10 +373,10 @@ const CHAMADAS_DEFAULT = {
 function gerarChamada(produto, canal = 'whatsapp', hoje = new Date()) {
   const nome = (produto.nome || '').toLowerCase();
 
-  // 1. Evento ≤ 30 dias
+  // 1. Evento ≤ 21 dias (campanha ativa)
   for (const ev of CALENDARIO_BR) {
     const d = diasAteEvento(ev, hoje);
-    if (d > 30) continue;
+    if (d > 21) continue;
     if (!ev.palavras.some(p => nome.includes(p))) continue;
     const chamada = CHAMADAS_EVENTO[ev.nome]?.[canal];
     if (chamada) return chamada;

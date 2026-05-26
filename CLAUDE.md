@@ -374,7 +374,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Tudo da v3.4 +
 - **Chamadas contextuais nas mensagens** (feedback: "se tiver no anúncio por essas exclamações, tipo 'copa do mundo vem aí'")
 - Nova função `gerarChamada(produto, canal)` em `tendencias.js`:
-  - Verifica se produto bate com evento próximo (≤ 30 dias) → retorna chamada do evento
+  - Verifica se produto bate com evento próximo (≤ 21 dias — campanha começa ~3 semanas antes do evento, intensifica nos últimos 14d, some no dia seguinte) → retorna chamada do evento
   - Senão, verifica estação atual OU próxima (2 meses pra frente) → chamada de estação
   - Senão, verifica tendência geral → chamada de trending
   - Senão, chamada padrão "🔥 OFERTA IMPERDÍVEL"
