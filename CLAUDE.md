@@ -8,8 +8,9 @@
 
 Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Baixa feed CSV oficial de afiliados (100k+ produtos diários)
-- **Curadoria inteligente por score (v3.4):** prioriza produtos por qualidade base + tendências do momento + **datas comemorativas próximas** (Copa, Namorados, Pais, Natal...) + **estação atual** (verão/inverno). Substitui o sort aleatório por sort baseado em score 0-200.
-- **Filtros rigorosos:** nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, desconto ≥ 20% + blocklist refinada (apenas modelos específicos de veículo, peças nicho, marcas chinesas obscuras — acessórios universais passam)
+- **Curadoria inteligente por score:** prioriza produtos por qualidade base + tendências do momento + **datas comemorativas próximas** (Copa, Namorados, Pais, Natal...) + **estação atual** (verão/inverno). Score 0-200 substitui sort aleatório.
+- **Filtros rigorosos:** nota ≥ 4.5, shop rating ≥ 4.7 (ignorado quando campo vazio no feed), preço R$ 10-150, desconto ≥ 20% + blocklist refinada (componentes PC, utilitários domésticos/hidráulica, veículo modelo-específico, nicho foto/hobby)
+- **Diversificação por setor (v3.11):** os 5 produtos do WhatsApp representam setores diferentes (beleza, cozinha, casa, moda, tech, pet, bebê, fitness, auto). Em **modo campanha** (Copa/Namorados ≤ 14 dias): 3 slots reservados pra produtos da campanha + 2 slots com diversificação normal.
 - **Horários separados por canal** (v3.2):
   - **WhatsApp:** 2x/dia (12h almoço + 20h noite), 5 produtos por disparo = 10 produtos/dia
   - **Instagram @byrosanamatias** (beleza): 1x/dia às 20h (horário de pico)
@@ -20,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.8 (Envio Rápido nas mensagens + fontes maiores)
+**Versão atual:** v3.14 (blocklist utilitários domésticos + diversificação por setor + campanha Copa)
 
 ---
 
@@ -212,10 +213,12 @@ Cada canal tem seu próprio cron e função. O feed CSV é compartilhado via cac
 
 ### Ciclo WhatsApp (12h e 20h)
 1. Verifica `/data/feed_cache.csv` — usa se < 6h
-2. Aplica filtros rigorosos (v3.3): nota ≥ 4.5, shop rating ≥ 4.7, preço R$ 10-150, nome ≥ 10 chars, **sem palavras/categorias bloqueadas** (peças veículo, marcas chinesas, foto/hobby)
-3. Filtra 5 que ainda não foram enviados (`historico.enviados`)
-4. Encurta links via TinyURL (fallback pro link feio se falhar)
-5. Pra cada produto: baixa imagem do CDN → envia foto + legenda no grupo
+2. Aplica filtros rigorosos: nota ≥ 4.5, shop rating ≥ 4.7 (ignora quando = 0), preço R$ 10-150, nome ≥ 10 chars, **sem palavras/categorias bloqueadas** (componentes PC, utilitários domésticos, peças veículo, nicho foto/hobby)
+3. Ordena por score (qualidade + tendência + campanha + estação, score 0-200)
+4. Pool de 100 não-enviados → `diversificarSelecao(pool, 5)`:
+   - **MODO CAMPANHA** (evento ≤ 14 dias, ex: Copa): 3 produtos com keywords da campanha (top score) + 2 de setores não cobertos
+   - **MODO NORMAL**: 1 produto por setor (beleza, cozinha, casa, moda, tech, pet, bebê, fitness, auto)
+5. Pra cada produto: encurta link → baixa imagem do CDN → envia foto + legenda no grupo
 6. Aguarda 4s entre cada envio
 7. Marca os 5 IDs no histórico (ring buffer 300)
 
@@ -406,7 +409,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - `landingpage.js` mostra 3 elementos visuais pra produto nacional (badge canto, faixa, bandeirinha grid)
 - Cores das gradientes seguem a bandeira do Brasil: verde #009b3a → amarelo #ffd700
 
-### v3.8 (26/05/2026 noite tarde) — **EM PRODUÇÃO** ✅
+### v3.8 (26/05/2026 noite tarde)
 - Tudo da v3.7 +
 - **"🇧🇷 Vendedor brasileiro · Entrega em 3-7 dias" também nas mensagens** (feedback: "sim pode adicionar")
 - `mensagem.js` (WhatsApp): adiciona linha extra entre preço e CTA pra produto nacional
@@ -428,6 +431,31 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - Logo: 76px → 90px
   - Padding e margins proporcionalmente ajustados
 - Internacionais não mostram linha nem badge — só ausência (sem indicador negativo)
+
+### v3.9 (26/05/2026)
+- Tudo da v3.8 +
+- **Fix crítico: filtro `shopRating` eliminava 100% dos produtos** — campo `shop_rating` no feed CSV vem vazio na maioria dos produtos (retorna 0 ao parsear). Filtro alterado para `(p.shopRating === 0 || p.shopRating >= MIN_SHOP_RATING)`: só rejeita quando o dado existe e está abaixo do threshold.
+
+### v3.10 (26/05/2026)
+- Tudo da v3.9 +
+- **Blocklist de componentes PC** — produtos de informática nicho (processador, placa-mãe, GPU, RAM DDR, SSD M.2, fonte ATX, gabinete PC, etc.) adicionados a `PALAVRAS_BLOQUEADAS` e `CATEGORIAS_BLOQUEADAS` (`computers`, `computer peripherals`, `networking`)
+
+### v3.11 (26/05/2026)
+- Tudo da v3.10 +
+- **Diversificação por setor** — `diversificarSelecao()` substituiu seleção sequencial. 9 setores definidos (`SETORES_KEYWORDS`): beleza, cozinha, casa, moda, tech, pet, bebê, fitness, auto. WhatsApp passa pool de 100 produtos; `diversificarSelecao` garante 1 produto por setor diferente (+ fill se pool pequeno).
+
+### v3.12 (26/05/2026)
+- Tudo da v3.11 +
+- **Modo campanha no seletor** — quando evento ≤ 14 dias (`CALENDARIO_BR`), `diversificarSelecao` entra em MODO CAMPANHA: 3 de 5 slots reservados pra produtos com keywords da campanha (top score, sem restrição de setor); 2 slots com diversificação normal.
+- **Fix keywords Copa do Mundo** — removidas `'verde amarelo'` e `'brasil'` (solo) que capturavam lâmpadas LED verde/amarela e produtos genéricos com "brasil" no nome. Keywords agora são específicas: `'seleção brasileira'`, `'camisa brasil'`, `'camiseta brasil'`, `'bandeira brasil'`, `'cbf'`, `'bola futebol'`, `'chuteira'`, `'futebol brasil'`, `'churrasco'`, `'isopor'`, `'caixa térmica'`, `'copo cervejaria'`, `'kit churrasco'`, `'cooler'`.
+
+### v3.13 (26/05/2026)
+- Tudo da v3.12 +
+- **Copa do Mundo cobre torneio inteiro** — antes: entrada única em `CALENDARIO_BR` para 11/06 (abertura) fazia o boost expirar no dia 12/06. Agora: segunda entrada em 19/07 (final do torneio). Boost copa ativo em dois períodos: 21/05–11/06 (abertura) e 28/06–19/07 (final). Gap 12–27/06 sem boost aceito como aceitável.
+
+### v3.14 (26/05/2026) — **EM PRODUÇÃO** ✅
+- Tudo da v3.13 +
+- **Blocklist utilitários domésticos/industriais** — itens bloqueados mesmo quando keyword de campanha bate (ex: "capa botijão de gás" batia keyword 'churrasco'). Adicionados a `PALAVRAS_BLOQUEADAS`: botijão, mangueira gás, registro gás, cano pvc, cano hidráulico, furadeira, parafusadeira, betoneira, compressor de ar, disjuntor, quadro elétrico, caixa d'água, vaso sanitário, pia, chuveiro elétrico, e ~30 outros itens de plomeria/elétrica/construção.
 
 ---
 
