@@ -89,6 +89,7 @@ Railway detecta o push em ~30s e faz redeploy em ~90s.
 | `AUTH_PATH` | `/data/baileys_auth` | sessão WhatsApp persistente |
 | `HISTORICO_PATH` | `/data/historico.json` | anti-repetição |
 | `TZ` | `America/Sao_Paulo` | timezone para cron |
+| `WHATSAPP_GROUP_INVITE_URL` | `https://chat.whatsapp.com/IDkdxxWLoNm7jt2fvWQ7qc` | link de convite do grupo "Achadinhos da Roh #1" |
 
 ### Instagram (Meta Graph API)
 

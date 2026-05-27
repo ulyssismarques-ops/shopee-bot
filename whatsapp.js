@@ -138,25 +138,44 @@ async function enviarImagemComLegenda(grupoId, imageUrl, legenda) {
   }
 }
 
+/**
+ * Posta uma imagem no WhatsApp Status (Stories) da conta da Rosana.
+ * Aparece pra todos os contatos que têm o número da Rosana salvo.
+ * v3.15 — usa status@broadcast nativo do Baileys.
+ */
+async function postarStatus(imageBuffer, texto) {
+  if (!sock || !isConnected) {
+    throw new Error('WhatsApp não está conectado');
+  }
+  try {
+    await sock.sendMessage('status@broadcast', {
+      image: imageBuffer,
+      caption: texto,
+    });
+    console.log('  📊 Status WhatsApp postado com sucesso.');
+  } catch (err) {
+    console.warn(`  ⚠️  Falha ao postar Status WA: ${err.message}`);
+  }
+}
+
 async function listarGrupos() {
   try {
     const grupos = await sock.groupFetchAllParticipating();
     const lista = Object.entries(grupos);
 
     console.log('\n' + '═'.repeat(60));
-    console.log('📋  GRUPOS QUE O BOT PARTICIPA:');
+    console.log('[GRUPOS QUE O BOT PARTICIPA]');
     console.log('═'.repeat(60));
     lista.forEach(([id, g]) => {
-      console.log(`  • ${g.subject}`);
+      console.log(`  - ${g.subject}`);
       console.log(`    ID: ${id}`);
     });
     console.log('═'.repeat(60));
-    console.log('\n👆  Copie o ID do grupo "GRUPO EXCLUSIVO - Achadinhos da Roh #1"');
-    console.log('    e adicione como WHATSAPP_GROUP_ID nas variáveis do Railway.');
+    console.log('\n Copie o ID do grupo e adicione como WHATSAPP_GROUP_ID no Railway.');
     console.log('    Formato: 1203630XXXXXXXXX@g.us\n');
   } catch (err) {
     console.error('Erro ao listar grupos:', err.message);
   }
 }
 
-module.exports = { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, listarGrupos };
+module.exports = { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, listarGrupos, postarStatus };
