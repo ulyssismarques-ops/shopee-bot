@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { CronJob } = require('cron');
 const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda } = require('./whatsapp');
-const { buscarProdutos, gerarLinkAfiliado, ehBeleza } = require('./shopee');
+const { buscarProdutos, gerarLinkAfiliado, ehBeleza, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
 const { postarNoInstagram, selecionarDestaque } = require('./instagram');
@@ -51,12 +51,14 @@ async function cicloWhatsApp() {
       return;
     }
 
-    let novos = filtrarNovos(produtos, QTD_PRODUTOS);
-    if (!novos.length) {
+    // Pool amplo pra diversificação poder escolher 1 por setor
+    let pool = filtrarNovos(produtos, 100);
+    if (!pool.length) {
       console.log('♻️  Histórico esgotado — resetando.');
       resetarHistorico();
-      novos = produtos.slice(0, QTD_PRODUTOS);
+      pool = produtos;
     }
+    const novos = diversificarSelecao(pool, QTD_PRODUTOS);
 
     // Resolve cada link feio para a versão curta (shope.ee/XXXX)
     const comLinks = await Promise.all(novos.map(async (p) => ({

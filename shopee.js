@@ -261,6 +261,87 @@ function filtrarQualidade(produtos) {
   return pontuados;
 }
 
+// ─── DIVERSIFICAÇÃO POR SETOR ────────────────────────────────────────────────
+// Garante que os 5 produtos enviados vêm de categorias distintas.
+// A ordem dos setores define a prioridade quando o nome bate em mais de um.
+const SETORES_KEYWORDS = {
+  beleza:  ['beleza', 'maquiagem', 'skincare', 'sérum', 'serum', 'perfume', 'cabelo',
+             'shampoo', 'condicionador', 'hidratante', 'batom', 'esmalte', 'protetor solar',
+             'máscara facial', 'mascara facial', 'gloss', 'blush', 'pincel maquiagem',
+             'iluminador', 'base maquiagem'],
+  cozinha: ['air fryer', 'forma silicone', 'garrafa térmica', 'garrafa termica',
+             'copo stanley', 'copo personalizado', 'squeeze', 'garrafinha',
+             'pote hermético', 'pote hermetico', 'tupperware', 'lancheira térmica',
+             'panela', 'frigideira', 'utensílio cozinha', 'utensilio cozinha',
+             'liquidificador', 'batedeira', 'fritadeira', 'descascador'],
+  casa:    ['luminária', 'luminaria', 'fita led', 'aromatizador ambiente', 'difusor',
+             'vaso decorativo', 'porta-retrato', 'quadro decorativo', 'cortina',
+             'tapete sala', 'almofada', 'organizador', 'cesto organizador',
+             'prateleira', 'gancho parede', 'cabide'],
+  moda:    ['vestido', 'blusa cropped', 'cropped', 'calça jeans', 'jeans destroyed',
+             'saia ', 'tênis branco', 'tenis branco', 'sandália', 'sandalia',
+             'bolsa ', 'pochete', 'anel ', 'colar ', 'pulseira', 'brinco',
+             'óculos de sol', 'oculos de sol', 'boné', 'bone aba reta', 'chapéu'],
+  tech:    ['fone bluetooth', 'fone sem fio', 'smartwatch', 'carregador rápido',
+             'carregador rapido', 'powerbank', 'cabo tipo c', 'cabo usb c',
+             'suporte celular', 'caixa de som', 'projetor portátil', 'webcam', 'mouse sem fio'],
+  pet:     ['cama pet', 'comedouro pet', 'bebedouro pet', 'arranhador', 'coleira',
+             'brinquedo cachorro', 'brinquedo gato', 'caixa transporte', 'guia ',
+             ' pet ', 'cachorro', ' gato '],
+  bebe:    ['bebê', 'bebe', 'baby ', 'mordedor', 'tapete bebê', 'tapete bebe',
+             'mochila escolar', 'lancheira infantil', 'boneca', 'pelúcia', 'pelucia',
+             'brinquedo infantil', 'carrinho bebe'],
+  fitness: ['elástico fitness', 'elastico fitness', 'colchonete', 'tapete yoga',
+             'halter ', 'caneleira', 'corda de pular', 'roller '],
+  auto:    ['suporte celular carro', 'carregador veicular', 'aromatizador automotivo',
+             'organizador porta-malas', 'capa de volante', 'almofada pescoço carro'],
+};
+
+function classificarSetor(produto) {
+  const nome = (produto.nome || '').toLowerCase();
+  const cat  = [produto.categoria1, produto.categoria2, produto.categoria3]
+    .filter(Boolean).join(' ').toLowerCase();
+  for (const [setor, kws] of Object.entries(SETORES_KEYWORDS)) {
+    if (kws.some(kw => nome.includes(kw) || cat.includes(kw))) return setor;
+  }
+  return 'outros';
+}
+
+/**
+ * Seleciona `quantidade` produtos diversificados — 1 por setor no máximo.
+ * Pressupõe que `produtos` já está ordenado por score decrescente.
+ * Se não houver setores suficientes, completa com os melhores restantes.
+ */
+function diversificarSelecao(produtos, quantidade = 5) {
+  const selecionados = [];
+  const setoresUsados = new Set();
+
+  // 1ª passagem: melhor de cada setor
+  for (const p of produtos) {
+    if (selecionados.length >= quantidade) break;
+    const setor = classificarSetor(p);
+    if (!setoresUsados.has(setor)) {
+      selecionados.push({ ...p, _setor: setor });
+      setoresUsados.add(setor);
+    }
+  }
+
+  // 2ª passagem: completa slots restantes com os melhores não usados
+  if (selecionados.length < quantidade) {
+    const usados = new Set(selecionados.map(p => p.id));
+    for (const p of produtos) {
+      if (selecionados.length >= quantidade) break;
+      if (!usados.has(p.id)) {
+        selecionados.push({ ...p, _setor: classificarSetor(p) });
+        usados.add(p.id);
+      }
+    }
+  }
+
+  console.log(`   🎨 Setores selecionados: ${selecionados.map(p => p._setor).join(', ')}`);
+  return selecionados;
+}
+
 const PALAVRAS_BELEZA = [
   'beleza', 'cosméticos', 'cosmético', 'maquiagem', 'skincare',
   'perfumaria', 'perfume', 'cabelo', 'cuidados pessoais', 'pele',
@@ -349,4 +430,4 @@ async function encurtarTinyURL(url) {
   return null;
 }
 
-module.exports = { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, ehBeleza };
+module.exports = { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, ehBeleza, diversificarSelecao };
