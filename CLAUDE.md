@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.22 (Páscoa adicionada + chocolate/pelúcia removidos de Namorados + trending bloqueado quando evento longe)
+**Versão atual:** v3.23 (Hashtags rotativas + test.js local + .env.example atualizado)
 
 ---
 
@@ -502,7 +502,21 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.22 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Páscoa + palavras ambíguas
+### v3.23 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Hashtags rotativas + test.js local
+- **M2: Hashtags rotativas** (instagram.js) — Instagram pune contas que repetem mesmas hashtags todo dia. Solução: 3 conjuntos por categoria (HASHTAGS_BASE_*, HASHTAGS_EXTRAS) rotacionados por `dia do mês % 3`.
+  - Dia 1, 4, 7, 10… → conjunto A
+  - Dia 2, 5, 8, 11… → conjunto B
+  - Dia 3, 6, 9, 12… → conjunto C
+- **M4: .env.example atualizado** com `RAILWAY_PUBLIC_URL` e `WHATSAPP_GROUP_INVITE_URL` (faltavam). Também reorganizado com seções claras + comentário sobre `TESTAR_AGORA`.
+- **M5: Script `test.js` local** — permite validar o bot SEM disparar pra produção:
+  - `node test.js` → usa 12 produtos sintéticos (casos de bug histórico cobertos)
+  - `node test.js --csv=/path/to/feed.csv` → usa feed real (copie do Railway)
+  - `node test.js --data=2026-11-15` → simula data específica (ex: Black Friday)
+  - `node test.js --top=20` → mostra top N (default 10)
+  - Output: top ranking com score/chamada/categoria + exemplo da mensagem WhatsApp do top 1 + sumário de produtos rejeitados por motivo
+  - **Vale ouro pra validar mudanças antes de pushar** — teria pego bugs como "luzes de natal" e "ovo de páscoa" antes de virem em produção
+
+### v3.22 (27/05/2026 manhã) — Páscoa + palavras ambíguas
 Postou no WA: "💕 Dia dos Namorados vem aí! Forma Silicone Chocolate Ovo Coelho 811 BWB" — ovo de Páscoa com chamada de Namorados!
 
 Causa: "chocolate" estava em Namorados palavras. Single word → matchava qualquer produto com chocolate. Adicionalmente, Páscoa não estava no calendário — produtos de Easter passavam sem ser detectados como fora-de-estação.

@@ -12,33 +12,89 @@ const IG_BELEZA_TOKEN   = process.env.INSTAGRAM_BELEZA_TOKEN;
 const IG_GERAL_USER_ID  = process.env.INSTAGRAM_GERAL_USER_ID;
 const IG_GERAL_TOKEN    = process.env.INSTAGRAM_GERAL_TOKEN;
 
-// Hashtags base fixas (aparecem em todos os posts)
-const HASHTAGS_BASE_BELEZA =
-  '#beleza #skincare #maquiagem #dicasdebeleza #cuidadospessoais ' +
-  '#achadinhosdaroh #shopeebrasil #ofertasdodia #cosméticos ' +
-  '#pele #cabelo #promoção #belezabarata #autocuidado #dicasdecompras';
+// ─── Hashtags rotativas (v3.23) ─────────────────────────────────────────────
+// Instagram pune contas que repetem mesmas hashtags todo dia.
+// Solução: 3 conjuntos por categoria, rotacionados por dia do mês.
+// Dia 1, 4, 7, 10... → conjunto A
+// Dia 2, 5, 8, 11... → conjunto B
+// Dia 3, 6, 9, 12... → conjunto C
+function rotacaoDoDia() {
+  return new Date().getDate() % 3;  // 0, 1 ou 2
+}
 
-const HASHTAGS_BASE_GERAL =
-  '#achadinhos #shopee #shopeebrasil #ofertasdodia #promoção ' +
-  '#desconto #achadinhosdaroh #comprasonline #ofertarelampago ' +
-  '#economize #dicasdecompras #achados #comprinhas #modabarata';
+const HASHTAGS_BASE_BELEZA = [
+  // Conjunto A — foco em beleza e skincare
+  '#beleza #skincare #maquiagem #dicasdebeleza #cuidadospessoais #cosméticos #pele #cabelo #autocuidado',
+  // Conjunto B — foco em achadinhos e ofertas
+  '#achadinhosdaroh #shopeebrasil #ofertasdodia #promoção #belezabarata #dicasdecompras #beautyfinds #achadinhos',
+  // Conjunto C — foco em rotina e dicas
+  '#rotinadebeleza #skincarediario #maquiagemnatural #autoestima #vidasaudavel #autocuidadodiario #belezasemfiltro',
+];
 
-// Hashtags extras por categoria (adicionadas dinamicamente conforme o produto)
+const HASHTAGS_BASE_GERAL = [
+  // Conjunto A — foco em achadinhos
+  '#achadinhos #shopee #shopeebrasil #ofertasdodia #achadinhosdaroh #comprasonline #ofertarelampago #comprinhas',
+  // Conjunto B — foco em desconto e promoção
+  '#promoção #desconto #economize #ofertaimperdivel #dicasdecompras #compraconsciente #achadododdia #pechinchando',
+  // Conjunto C — foco em estilo de vida
+  '#dicasdoshopee #achados #shopeefinds #organização #praticidade #qualidade #valeapena #recomendado',
+];
+
+// Hashtags extras por categoria (3 variações cada)
 const HASHTAGS_EXTRAS = {
-  beleza:  '#makeupbrasil #skincarebr #rotinadebeleza #beautytips #skincaredicas',
-  cozinha: '#cozinhabr #kitchenbr #airfryerrecipes #receitasfaceis #cozinhando',
-  casa:    '#decoracaobr #homedecor #casabonita #organizacaocasa #decoração',
-  moda:    '#modabr #modafeminina #lookdodia #ootdbrasil #fashion',
-  tech:    '#tecnologia #gadgets #techbr #eletrônicos #techreview',
-  pet:     '#petbr #cachorro #gato #petlovers #pets',
-  bebe:    '#maternidade #bebê #maebr #gravidez #mamãe',
-  fitness: '#fitness #academia #treinoemcasa #fitnessbr #saudeebemestar',
-  auto:    '#carros #autopeças #carrobr #automóveis #carro',
+  beleza: [
+    '#makeupbrasil #skincarebr #rotinadebeleza #beautytips #skincaredicas',
+    '#beautyaddict #cosmeticstore #peleperfeita #peleradiante #glowup',
+    '#beautyhacks #automaquiagem #produtocoreano #kbeauty #routine',
+  ],
+  cozinha: [
+    '#cozinhabr #kitchenbr #airfryerrecipes #receitasfaceis #cozinhando',
+    '#cozinhagourmet #utensiliosdecozinha #kitchengoals #fooddiary #lifehacks',
+    '#donadecasa #cozinhapratica #cooking #cozinhaboraver #praticidade',
+  ],
+  casa: [
+    '#decoracaobr #homedecor #casabonita #organizacaocasa #decoração',
+    '#interiordesignbr #decoracaocriativa #casadossonhos #decorinspo #aestheticbedroom',
+    '#minhacasa #saladestar #cozinhadecorada #quartocasal #ambientesbr',
+  ],
+  moda: [
+    '#modabr #modafeminina #lookdodia #ootdbrasil #fashion',
+    '#estilobr #modaplussize #modabasica #moda2026 #vistaisso',
+    '#bazarbrasil #modaacessivel #ootdshop #achadinhosdemodelo #lookdetrabalho',
+  ],
+  tech: [
+    '#tecnologia #gadgets #techbr #eletrônicos #techreview',
+    '#gadgetslovers #techbrasil #produtividade #worksetup #setupgamer',
+    '#cabosereumemoriadeam #gadgetsuteis #eletronicosbr #techachadinhos #fonebluetooth',
+  ],
+  pet: [
+    '#petbr #cachorro #gato #petlovers #pets',
+    '#dogsofbrazil #catsofbrazil #petfeliz #vidadepet #petlife',
+    '#caoecia #cachorrofeliz #gatofeliz #cuidadocomopet #petmaiscarinho',
+  ],
+  bebe: [
+    '#maternidade #bebê #maebr #gravidez #mamãe',
+    '#maedeprimeiraviagem #bebedebrasil #produtosparabebe #maternidadeevida #amordemae',
+    '#cuidadoscomoBebe #vidademae #bebezinho #mamaeebebe #babylove',
+  ],
+  fitness: [
+    '#fitness #academia #treinoemcasa #fitnessbr #saudeebemestar',
+    '#vidasaudavel #treinodiario #musculação #emagrecer #healthylife',
+    '#fitnessmotivation #treinoinfra #personalfeminino #saudeprimeiro #disciplinacomamor',
+  ],
+  auto: [
+    '#carros #automotivo #carrobr #carros2026 #acessoriosdecarro',
+    '#carlovers #vidanaestrada #suporteveicular #carolife #automóveis',
+    '#cuidardocarro #organizacaoautomotiva #aromatizadorcarro #carrolimpo #autoamigo',
+  ],
 };
 
 // Retorna hashtags base + extras por categoria do produto
+// Rotaciona conjuntos diariamente pra evitar shadowban do Instagram (v3.23)
 function gerarHashtags(produto, perfil) {
-  const base = perfil === 'beleza' ? HASHTAGS_BASE_BELEZA : HASHTAGS_BASE_GERAL;
+  const idx = rotacaoDoDia();
+  const basePool = perfil === 'beleza' ? HASHTAGS_BASE_BELEZA : HASHTAGS_BASE_GERAL;
+  const base = basePool[idx];
   const nome  = (produto.nome || '').toLowerCase();
   const cat   = [produto.categoria1, produto.categoria2, produto.categoria3]
     .filter(Boolean).join(' ').toLowerCase();
@@ -57,9 +113,10 @@ function gerarHashtags(produto, perfil) {
     auto:    ['carro', 'veículo', 'automotivo', 'automóvel'],
   };
 
-  for (const [cat, palavras] of Object.entries(categoriaMap)) {
+  for (const [c, palavras] of Object.entries(categoriaMap)) {
     if (palavras.some(p => texto.includes(p))) {
-      return base + '\n' + HASHTAGS_EXTRAS[cat];
+      const extras = HASHTAGS_EXTRAS[c][idx];
+      return base + '\n' + extras;
     }
   }
   return base;
