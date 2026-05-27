@@ -184,4 +184,38 @@ function fmtBRL(valor) {
   });
 }
 
-module.exports = { postarNoInstagram, selecionarDestaque };
+/**
+ * Posta um Story no Instagram (v3.16).
+ * Usa o mesmo endpoint da feed, mas com media_type=STORIES.
+ * O story aparece por 24h e fica no topo do feed dos seguidores.
+ * Nao tem caption visivel — a imagem fala por si.
+ */
+async function postarStory(produto, perfil) {
+  const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
+  const token  = perfil === 'beleza' ? IG_BELEZA_TOKEN   : IG_GERAL_TOKEN;
+
+  if (!userId || !token || !produto.imagem) return;
+
+  try {
+    const { data: container } = await axios.post(
+      `${BASE_URL}/${userId}/media`,
+      null,
+      { params: { image_url: produto.imagem, media_type: 'STORIES', access_token: token } }
+    );
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    await axios.post(
+      `${BASE_URL}/${userId}/media_publish`,
+      null,
+      { params: { creation_id: container.id, access_token: token } }
+    );
+
+    console.log(`  📖 Story Instagram [${perfil}]: publicado.`);
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    console.warn(`  Story [${perfil}] nao postado: ${msg}`);
+  }
+}
+
+module.exports = { postarNoInstagram, postarStory, selecionarDestaque };

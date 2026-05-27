@@ -4,7 +4,7 @@ const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus }
 const { buscarProdutos, gerarLinkAfiliado, ehBeleza, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
-const { postarNoInstagram, selecionarDestaque } = require('./instagram');
+const { postarNoInstagram, postarStory, selecionarDestaque } = require('./instagram');
 const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID         = process.env.WHATSAPP_GROUP_ID;
@@ -84,6 +84,10 @@ async function cicloInstagram(perfil) {
     if (!destaque) { console.log(`Sem destaque para ${perfil}.`); return; }
     destaque.linkAfiliado = await gerarLinkAfiliado(destaque.url, destaque.linkAfiliado);
     await postarNoInstagram(destaque, perfil);
+
+    // Posta Story logo apos o feed (v3.16) — aparece 24h no topo dos seguidores
+    await postarStory(destaque, perfil);
+
     console.log(`Instagram [${perfil}] concluido.\n`);
   } catch (err) {
     console.error(`Erro no ciclo Instagram [${perfil}]:`, err.message);
