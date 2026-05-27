@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.18 (Reels ffmpeg + carrossel top3 + stories + status WA + comissao no score + hashtags por categoria + convite rotativo)
+**Versão atual:** v3.19 (Word-boundary matching + penalidade evento longe + bloqueio spam de busca)
 
 ---
 
@@ -476,13 +476,31 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Carrossel top 3 por categoria** — `instagram.js::postarCarrossel()` cria 3 containers individuais e agrupa num CAROUSEL (Meta Graph API). `cicloInstagram()` usa carrossel quando há 2+ produtos disponíveis. Caption lista os 3 produtos com preço e desconto. Mais saves + tempo de tela = favorecido pelo algoritmo.
 - **`selecionarTopN(produtos, n)`** — função auxiliar que ordena por desconto percentual e retorna os top N com imagem.
 
-### v3.18 (26/05/2026) — **EM PRODUÇÃO** ✅
+### v3.18 (26/05/2026)
 - Tudo da v3.17 +
 - **Reels Instagram via ffmpeg** — `reels.js` baixa imagem do CDN Shopee e roda ffmpeg para gerar MP4 de 7s com efeito Ken Burns (zoom suave 1.0→1.3). `instagram.js::postarReel()` serve o video via Express (`/reel/:file`) e posta como `media_type=REELS` na Meta Graph API. Aguarda 45s fixos pra processamento de video.
 - **Dockerfile**: `ffmpeg` adicionado ao apt-get install.
 - **landingpage.js**: rota `/reel/:file` serve videos temporários de `/data/` pra Meta API buscar.
 - **Horário dos Reels**: 10h/dia (1x por perfil, antes dos ciclos de feed/story).
 - **Env var**: `RAILWAY_PUBLIC_URL` (URL pública do Railway — usada pra montar o `video_url`).
+
+### v3.19 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅
+- Tudo da v3.18 +
+- **Fix do substring matching** que estava deixando bugs grotescos passarem:
+  - "coração" matchava "decoração" → **Luzes de Natal pegavam chamada "Bora surpreender o amor"** 😱
+  - "amor" poderia matchar "amortecedor", "led" qualquer LED, etc.
+  - Nova função `palavraEstaNoNome(palavra, nome)` em `tendencias.js` usa regex com word-boundary manual `(^|[^a-zà-ú0-9])` que funciona com chars acentuados (`\b` do JS não funciona com `ç`/`ã`)
+  - Aplicada em `pontuarProduto` e `gerarChamada` — substitui todos os `.includes(p)`
+- **Penalidade -40 pra produto de evento muito longe** (>60 dias):
+  - Luzes de Natal em maio (Natal 213d longe): score cai de 64 → 24 → vai pro fundo do ranking
+  - Antes não havia nada barrando isso, agora produto sazonal fora de hora morre
+- **`cooler` removido das palavras da Copa e Verão**, substituído por `cooler térmico` e `cooler de bebida`:
+  - "Cooler Fan RGB Gamer" não pega mais chamada "COPA DO MUNDO VEM AÍ!" 🤦
+  - "led" sozinho também removido das tendências (matchava qualquer eletrônico com LED)
+- **Bloqueio de spam de busca em `shopee.js`** — regex em `PADROES_SPAM`:
+  - `^top \d+ achado` (ex: "Top 3 achados do dia: 1, Kit...")
+  - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
+  - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
 ---
 

@@ -222,8 +222,21 @@ function temCategoriaBloqueada(p) {
 function temPalavraBloqueada(nome) {
   if (!nome) return false;
   const n = nome.toLowerCase();
-  return PALAVRAS_BLOQUEADAS.some((p) => n.includes(p));
+  if (PALAVRAS_BLOQUEADAS.some((p) => n.includes(p))) return true;
+  // Padrões spammy de vendedor — "Top 3 achados do dia", "Top 5 mais vendidos", etc.
+  // Vendedores Shopee fazem isso pra gamificar a busca, geralmente é lixão
+  if (PADROES_SPAM.some((re) => re.test(n))) return true;
+  return false;
 }
+
+// Regex pra detectar nomes claramente artificiais (gaming de busca)
+const PADROES_SPAM = [
+  /^top \d+ achado/i,             // "Top 3 achados..."
+  /^top \d+ do dia/i,             // "Top 5 do dia..."
+  /^top \d+ mais/i,               // "Top 10 mais vendidos..."
+  /^\d+\s*[°ºª]\s*lugar/i,        // "1° lugar em..."
+  /^melhor[es]? \d+/i,            // "Melhores 5..."
+];
 
 function filtrarQualidade(produtos) {
   // Conta quantos passam em CADA filtro individualmente (debug)

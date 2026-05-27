@@ -40,7 +40,7 @@ const CALENDARIO_BR = [
     palavras: ['seleção brasileira', 'camisa brasil', 'camiseta brasil', 'bandeira brasil',
                'cbf', 'bola futebol', 'chuteira', 'futebol brasil',
                'churrasco', 'isopor', 'caixa térmica', 'copo cervejaria',
-               'kit churrasco', 'cooler'],
+               'kit churrasco', 'cooler térmico', 'cooler de bebida'],
   },
   {
     // Final do torneio (19/07) — mantém boost durante todo o mês da Copa
@@ -49,7 +49,7 @@ const CALENDARIO_BR = [
     palavras: ['seleção brasileira', 'camisa brasil', 'camiseta brasil', 'bandeira brasil',
                'cbf', 'bola futebol', 'chuteira', 'futebol brasil',
                'churrasco', 'isopor', 'caixa térmica', 'copo cervejaria',
-               'kit churrasco', 'cooler'],
+               'kit churrasco', 'cooler térmico', 'cooler de bebida'],
   },
   {
     mes: 6, dia: 24, nome: 'São João / Festa Junina',
@@ -93,7 +93,7 @@ const CALENDARIO_BR = [
 const ESTACOES_BR = {
   verao:    {
     meses: [12, 1, 2, 3],
-    palavras: ['verão', 'praia', 'piscina', 'biquíni', 'maiô', 'sunga', 'protetor solar', 'óculos de sol', 'ventilador', 'ar condicionado', 'climatizador', 'cooler', 'gelo', 'churrasco', 'havaiana', 'rasteirinha', 'short praia', 'canga', 'boné', 'chapéu'],
+    palavras: ['verão', 'praia', 'piscina', 'biquíni', 'maiô', 'sunga', 'protetor solar', 'óculos de sol', 'ventilador', 'ar condicionado', 'climatizador', 'cooler térmico', 'cooler de bebida', 'gelo', 'churrasco', 'havaiana', 'rasteirinha', 'short praia', 'canga', 'boné', 'chapéu'],
   },
   outono:   {
     meses: [4, 5],
@@ -117,8 +117,8 @@ const TENDENCIAS_GERAIS = [
   'cabo tipo c', 'cabo usb c', 'suporte celular', 'caixa de som', 'projetor portátil',
   'webcam', 'mouse sem fio',
 
-  // Casa estética / decor
-  'luminária', 'led', 'fita led', 'pendente', 'aromatizador ambiente',
+  // Casa estética / decor — "led" sozinho é genérico demais (matcha qualquer LED)
+  'luminária', 'luminária led', 'fita led', 'arandela', 'pendente decorativo', 'aromatizador ambiente',
   'difusor', 'vaso decorativo', 'porta-retrato', 'quadro decorativo',
   'cortina blackout', 'tapete sala', 'almofada',
 
@@ -161,6 +161,19 @@ const TENDENCIAS_GERAIS = [
 ];
 
 // ─── FUNÇÕES ─────────────────────────────────────────────────────────────────
+
+// Verifica se uma palavra/expressão aparece no nome do produto como
+// PALAVRA INTEIRA, não substring. Evita "coração" matchar "decoração",
+// "amor" matchar "amortecedor", "led" matchar "lente", etc.
+//
+// Suporta multi-palavras tipo "cooler térmico" (palavras+espaços).
+// Funciona com chars acentuados pt-BR (regex \b não funciona com ç/ã/etc).
+function palavraEstaNoNome(palavra, nome) {
+  if (!palavra || !nome) return false;
+  const escapada = palavra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(^|[^a-zà-ú0-9])${escapada}(?=[^a-zà-ú0-9]|$)`, 'i');
+  return re.test(nome);
+}
 
 function diasAteEvento(evento, hoje = new Date()) {
   const ano = hoje.getFullYear();
@@ -218,26 +231,33 @@ function pontuarProduto(produto, hoje = new Date()) {
   const descPts   = Math.min(produto.desconto * 0.6, 30);
   score += ratingPts + shopPts + descPts;
 
-  // Boost tendência geral
-  if (TENDENCIAS_GERAIS.some(t => nome.includes(t))) {
+  // Boost tendência geral — palavra inteira (não substring)
+  if (TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
     score += 30;
   }
 
-  // Boost evento — campanha começa 21 dias antes, peaks nos últimos 14
+  // Boost evento próximo + penalidade pra evento muito longe
+  // Ex: Luzes de Natal em maio (Natal 213d longe) leva -40 → vai pro fim do ranking
+  // Ex: Camisa Brasil 15d antes da Copa leva +50
   let melhorBoostEvento = 0;
+  let piorPenalidadeFora = 0;
   for (const ev of CALENDARIO_BR) {
     const d = diasAteEvento(ev, hoje);
-    if (d > 21) continue;
-    const bate = ev.palavras.some(p => nome.includes(p));
+    const bate = ev.palavras.some(p => palavraEstaNoNome(p, nome));
     if (!bate) continue;
-    const boost = d <= 14 ? 50 : 25;
-    if (boost > melhorBoostEvento) melhorBoostEvento = boost;
+    if (d <= 21) {
+      const boost = d <= 14 ? 50 : 25;
+      if (boost > melhorBoostEvento) melhorBoostEvento = boost;
+    } else if (d > 60) {
+      // Produto fora de estação (>2 meses pra acontecer) — penaliza forte
+      if (piorPenalidadeFora < 40) piorPenalidadeFora = 40;
+    }
   }
-  score += melhorBoostEvento;
+  score += melhorBoostEvento - piorPenalidadeFora;
 
   // Boost estação atual
   const estacao = estacaoAtual(hoje);
-  if (estacao && estacao.palavras.some(p => nome.includes(p))) {
+  if (estacao && estacao.palavras.some(p => palavraEstaNoNome(p, nome))) {
     score += 15;
   }
 
@@ -400,11 +420,11 @@ const CHAMADAS_DEFAULT = {
 function gerarChamada(produto, canal = 'whatsapp', hoje = new Date()) {
   const nome = (produto.nome || '').toLowerCase();
 
-  // 1. Evento ≤ 21 dias (campanha ativa)
+  // 1. Evento ≤ 21 dias (campanha ativa) — palavra inteira
   for (const ev of CALENDARIO_BR) {
     const d = diasAteEvento(ev, hoje);
     if (d > 21) continue;
-    if (!ev.palavras.some(p => nome.includes(p))) continue;
+    if (!ev.palavras.some(p => palavraEstaNoNome(p, nome))) continue;
     const chamada = CHAMADAS_EVENTO[ev.nome]?.[canal];
     if (chamada) return chamada;
   }
@@ -413,14 +433,14 @@ function gerarChamada(produto, canal = 'whatsapp', hoje = new Date()) {
   const mes = hoje.getMonth() + 1;
   const mesesRelevantes = [mes, (mes % 12) + 1, ((mes + 1) % 12) + 1];
   for (const [estNome, info] of Object.entries(ESTACOES_BR)) {
-    if (!info.palavras.some(p => nome.includes(p))) continue;
+    if (!info.palavras.some(p => palavraEstaNoNome(p, nome))) continue;
     if (!info.meses.some(m => mesesRelevantes.includes(m))) continue;
     const chamada = CHAMADAS_ESTACAO[estNome]?.[canal];
     if (chamada) return chamada;
   }
 
   // 3. Tendência geral
-  if (TENDENCIAS_GERAIS.some(t => nome.includes(t))) {
+  if (TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
     return CHAMADAS_TRENDING[canal];
   }
 
@@ -434,6 +454,7 @@ module.exports = {
   estacaoAtual,
   descreverContexto,
   gerarChamada,
+  palavraEstaNoNome,
   CALENDARIO_BR,
   TENDENCIAS_GERAIS,
 };
