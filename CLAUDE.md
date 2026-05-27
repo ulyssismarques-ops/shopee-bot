@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.20 (Fix Reels/Stories nunca funcionaram + ordem rotas Express + erros visíveis)
+**Versão atual:** v3.22 (Páscoa adicionada + chocolate/pelúcia removidos de Namorados + trending bloqueado quando evento longe)
 
 ---
 
@@ -502,7 +502,28 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.20 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Análise profunda + 6 fixes críticos
+### v3.22 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Páscoa + palavras ambíguas
+Postou no WA: "💕 Dia dos Namorados vem aí! Forma Silicone Chocolate Ovo Coelho 811 BWB" — ovo de Páscoa com chamada de Namorados!
+
+Causa: "chocolate" estava em Namorados palavras. Single word → matchava qualquer produto com chocolate. Adicionalmente, Páscoa não estava no calendário — produtos de Easter passavam sem ser detectados como fora-de-estação.
+
+Fixes:
+- **Removidos `chocolate` e `pelúcia` de Namorados** — ambíguos demais. Substituídos por `caixa bombom`, `kit bombom` (mais específico).
+- **Páscoa adicionada ao CALENDARIO_BR** com 21 palavras-chave (ovo páscoa, forma chocolate, ovo coelho, chocolate ovo, etc.). Páscoa 2027 está 314 dias longe → produtos Easter pegam -40 penalty.
+- **Trending boost NÃO aplica se evento longe penalizou** ([tendencias.js:pontuarProduto](tendencias.js)): antes, "forma silicone" salvava Easter forms (+30 trending compensava -40 penalty). Agora os dois efeitos não se anulam — penalidade vence.
+
+Resultado dos testes:
+- Forma Silicone Ovo Coelho: era 95 → agora **25** (default)
+- Forma Silicone Bolo (legítima): mantém **95** ✅
+- Kit Casal real: mantém **92** ✅ (Namorados)
+- Luzes de Natal: **24** (já estava penalizado, sem trending)
+
+### v3.21 (27/05/2026 manhã) — Carrossel sem re-selecionar + TESTAR_AGORA cobre Reels + shopRating=0
+- B8: postarCarrossel aceita lista preparada (não re-seleciona top3 internamente)
+- B9: TESTAR_AGORA agora dispara cicloReels também
+- B10: shopRating=0 exige avaliacao ≥ 4.7 como compensação
+
+### v3.20 (27/05/2026 manhã) — Análise profunda + 6 fixes críticos
 Análise revelou que **Reels e Stories NUNCA funcionaram** desde a v3.16/v3.18 — o usuário só descobriu agora olhando o Instagram. Causas encontradas:
 
 - **B1 — Rota Express engolida** ([landingpage.js](landingpage.js)): `app.get('/reel/:file')` estava declarada DEPOIS do `app.use((req, res) => res.redirect('/'))`. Como Express respeita ordem, o catch-all engolia todos os requests. Resultado: Meta API tentava baixar `/reel/...` e recebia HTTP 302 (redirect) → Reel NUNCA postava. Confirmado via `curl` ao vivo: respondia 302.

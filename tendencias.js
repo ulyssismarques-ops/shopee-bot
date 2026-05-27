@@ -27,12 +27,29 @@ const CALENDARIO_BR = [
     palavras: ['feminino', 'mulher', 'autoestima', 'autocuidado', 'beleza', 'kit beleza', 'maquiagem'],
   },
   {
+    // Páscoa varia (entre 22/03 e 25/04). Usamos 1/4 como aproximação.
+    // Quando a Páscoa real chega, o boost ativa nas semanas anteriores.
+    // Fora dessa janela, produtos de Páscoa pegam penalidade -40 e somem do feed.
+    // PHRASES funcionam melhor: "ovo coelho", "chocolate ovo", "forma ovo".
+    mes: 4, dia: 1, nome: 'Páscoa',
+    palavras: ['páscoa', 'ovo páscoa', 'ovo de páscoa',
+               'coelho páscoa', 'coelho de páscoa', 'ovo coelho',
+               'cesta páscoa', 'cesta de páscoa', 'kit páscoa',
+               'forma chocolate', 'forma de chocolate', 'forma ovo',
+               'chocolate ovo', 'ovo chocolate', 'ovinho chocolate',
+               'colher chocolate', 'molde chocolate',
+               'embalagem páscoa', 'embalagem ovo',
+               'fundo páscoa', 'fundo fotográfico páscoa'],
+  },
+  {
     mes: 5, dia: 12, nome: 'Dia das Mães',
     palavras: ['mãe', 'mães', 'maternidade', 'presente mãe', 'feminino', 'kit beleza', 'porta-retrato', 'caixa presente', 'pijama feminino', 'roupão'],
   },
   {
     mes: 6, dia: 12, nome: 'Dia dos Namorados',
-    palavras: ['casal', 'namorada', 'namorado', 'romântico', 'amor', 'coração', 'presente casal', 'pijama casal', 'chocolate', 'caneca casal', 'pelúcia', 'almofada coração', 'aliança', 'colar coração', 'porta-retrato casal', 'kit relacionamento', 'jogo casal'],
+    // v3.22: removidos 'chocolate' e 'pelúcia' — ambíguos demais.
+    // "chocolate" pegava ovo de Páscoa, "pelúcia" pega brinquedo infantil ano todo.
+    palavras: ['casal', 'namorada', 'namorado', 'romântico', 'amor', 'coração', 'presente casal', 'pijama casal', 'caneca casal', 'almofada coração', 'aliança', 'colar coração', 'porta-retrato casal', 'kit relacionamento', 'jogo casal', 'caixa bombom', 'kit bombom'],
   },
   {
     // Abertura do torneio — campanha começa 21 dias antes (21/05)
@@ -231,14 +248,10 @@ function pontuarProduto(produto, hoje = new Date()) {
   const descPts   = Math.min(produto.desconto * 0.6, 30);
   score += ratingPts + shopPts + descPts;
 
-  // Boost tendência geral — palavra inteira (não substring)
-  if (TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
-    score += 30;
-  }
-
   // Boost evento próximo + penalidade pra evento muito longe
   // Ex: Luzes de Natal em maio (Natal 213d longe) leva -40 → vai pro fim do ranking
   // Ex: Camisa Brasil 15d antes da Copa leva +50
+  // Ex: Forma Ovo Páscoa em maio (Páscoa 314d longe) leva -40
   let melhorBoostEvento = 0;
   let piorPenalidadeFora = 0;
   for (const ev of CALENDARIO_BR) {
@@ -254,6 +267,13 @@ function pontuarProduto(produto, hoje = new Date()) {
     }
   }
   score += melhorBoostEvento - piorPenalidadeFora;
+
+  // Boost tendência geral — palavra inteira (não substring).
+  // v3.22: NÃO aplica se produto já foi penalizado por evento longe — evita
+  // que "forma silicone" salve um produto de Páscoa fora de estação.
+  if (piorPenalidadeFora === 0 && TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
+    score += 30;
+  }
 
   // Boost estação atual
   const estacao = estacaoAtual(hoje);
