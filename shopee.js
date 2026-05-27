@@ -10,7 +10,8 @@ const CACHE_META = '/data/feed_meta.json';
 const CACHE_TTL_HORAS = 6;
 
 const MIN_AVALIACAO   = 4.5;   // antes 4.0 — filtros mais rigorosos (v3.3)
-const MIN_SHOP_RATING = 4.7;   // só aplica quando shopRating > 0 (campo ausente no feed = sem penalidade)
+const MIN_SHOP_RATING = 4.7;   // exigido quando feed informa shop_rating > 0
+const MIN_AVAL_SEM_SHOP = 4.7; // v3.20 — exigido como compensação quando shop_rating=0 no feed
 const MIN_PRECO       = 10;    // antes 5 — abaixo disso geralmente é tranqueirinha
 const MAX_PRECO       = 150;   // antes 300 — foco em achadinho de impulso
 const DESCONTO_BOM    = 20;    // antes 15 — só destaca quem tem oferta real
@@ -254,9 +255,13 @@ function filtrarQualidade(produtos) {
   console.log(`      • Nome ≥ 10 caracteres:    ${c.nome}`);
   console.log(`      • Não bloqueados:          ${c.naoBloq}`);
 
+  // v3.20: quando feed não informa shopRating (=0), compensamos exigindo
+  // nota do produto mais alta (≥4.7 em vez de ≥4.5). Vendedor ruim que
+  // omita o rating não passa de graça.
   const base = produtos.filter(p =>
     p.avaliacao   >= MIN_AVALIACAO &&
-    (p.shopRating === 0 || p.shopRating >= MIN_SHOP_RATING) &&
+    (p.shopRating >= MIN_SHOP_RATING ||
+     (p.shopRating === 0 && p.avaliacao >= MIN_AVAL_SEM_SHOP)) &&
     p.precoAtual  >= MIN_PRECO &&
     p.precoAtual  <= MAX_PRECO &&
     p.nome && p.nome.length >= 10 &&

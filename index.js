@@ -96,9 +96,10 @@ async function cicloInstagram(perfil) {
     }
 
     // Posta carrossel com os 3 melhores (se houver 2+), senao post simples
+    // v3.20: passa top3 já preparado (com links resolvidos) — não re-selecionar
     const destaque = top3[0];
     if (top3.length >= 2) {
-      await postarCarrossel(filtrado, perfil);
+      await postarCarrossel(top3, perfil);
     } else {
       await postarNoInstagram(destaque, perfil);
     }
@@ -150,11 +151,15 @@ async function main() {
   console.log('   Reels:     10h (1x/dia por perfil, ffmpeg zoom suave 7s)');
 
   if (TESTAR_AGORA) {
-    console.log('\nMODO TESTE — disparando em 10s...');
+    console.log('\n🧪 MODO TESTE ATIVO — disparando TODOS os canais em 10s...');
+    console.log('   ⚠️  IMPORTANTE: remova TESTAR_AGORA do Railway depois do teste!');
     setTimeout(async () => {
       await cicloWhatsApp();
       await cicloInstagram('geral');
       await cicloInstagram('beleza');
+      // v3.20: TESTAR_AGORA agora cobre Reels também
+      await cicloReels('geral');
+      await cicloReels('beleza');
     }, 10000);
   }
 }

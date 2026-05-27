@@ -246,8 +246,11 @@ function selecionarTopN(produtos, n = 3) {
 }
 
 /**
- * Posta um carrossel com os top 3 produtos da categoria (v3.17).
- * Cada imagem e um produto diferente — mais saves, mais tempo de tela.
+ * Posta um carrossel com 2-3 produtos (v3.17, ajustado em v3.20).
+ *
+ * Aceita seja uma lista crua (vai filtrar/selecionar top 3) seja uma lista
+ * já preparada — se receber array de até 10 produtos com .imagem todos,
+ * usa direto sem re-selecionar (evita re-resolver links de afiliado).
  */
 async function postarCarrossel(produtos, perfil) {
   const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
@@ -255,7 +258,12 @@ async function postarCarrossel(produtos, perfil) {
 
   if (!userId || !token) return;
 
-  const top = selecionarTopN(produtos, 3);
+  // Se chamador já passou top N preparado (até 10), usa direto;
+  // senão, re-seleciona top 3 do array bruto.
+  const top = (produtos.length <= 10 && produtos.every(p => p.imagem))
+    ? produtos.slice(0, 10)
+    : selecionarTopN(produtos, 3);
+
   if (top.length < 2) {
     console.log(`  Poucos produtos com imagem para carrossel [${perfil}], pulando.`);
     return null;
