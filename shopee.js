@@ -60,6 +60,17 @@ const PALAVRAS_BLOQUEADAS = [
   'gabinete gamer', 'gabinete pc', 'cooler cpu', 'water cooler cpu',
   'pasta térmica', 'pasta termica', 'dissipador cpu',
   'switch 8 portas', 'switch 16 portas', 'cabo de rede cat',
+  // Utilitários domésticos pesados — jamais são presente ou impulso de compra
+  'botijão', 'bujão', 'mangueira gás', 'regulador gás', 'válvula gás',
+  'caixa d agua', 'caixa dagua', 'reservatório', 'bomba d agua', 'bomba dagua',
+  'calha ', 'telha ', 'tijolo', 'cimento', 'argamassa',
+  'furadeira', 'parafusadeira', 'marreta', 'enxada', 'foice',
+  'tela mosquiteiro', 'grade de ferro', 'porta de ferro',
+  'vaso sanitário', 'vaso sanitario', 'sifão ', 'tampa vaso', 'assento sanitário',
+  'cabo de vassoura', 'cabo de rodo',
+  // Peças elétricas e hidráulicas (não acessórios, peças brutas)
+  'disjuntor', 'quadro de luz', 'eletroduto', 'conduíte',
+  'cano pvc', 'joelho pvc', 'luva pvc', 'registro de água',
   // Marcas chinesas obscuras
   'laikou', 'yesop', 'bamoer', 'kaukko', 'rolanstar',
   // Termos estrangeiros que não vendem bem no BR
