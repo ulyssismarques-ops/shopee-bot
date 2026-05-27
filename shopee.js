@@ -23,6 +23,8 @@ const CATEGORIAS_BLOQUEADAS = [
   'home improvement', 'hardware', 'building supplies',
   // Industrial e profissional
   'industrial', 'commercial', 'office equipment', 'medical',
+  // Informática / computação — nicho demais pra audiência da Rosana
+  'computers', 'computer peripherals', 'networking', 'servers', 'storage',
   // Hobby muito nicho
   'cameras & drones', 'photography', 'pro audio',
   'musical instrument', 'collectibles', 'cosplay',
@@ -50,6 +52,14 @@ const PALAVRAS_BLOQUEADAS = [
   // Foto/hobby super nicho (acessório de fotógrafo profissional)
   'fundo fotográfico', 'fundo fotografico', 'tripé profissional',
   'softbox', 'ringlight profissional', 'cosplay', 'figure action',
+  // Componentes de PC — nicho demais pra audiência geral
+  'processador intel', 'processador amd', 'placa-mãe', 'placa mae',
+  'placa de vídeo', 'placa de video', 'placa video', ' gpu ', 'rtx ', 'gtx ',
+  'memória ram', 'memoria ram', ' ram ddr', 'ddr4 ', 'ddr5 ',
+  'ssd m.2', 'nvme ', 'm2 nvme', 'hd sata', 'fonte atx', 'fonte psu',
+  'gabinete gamer', 'gabinete pc', 'cooler cpu', 'water cooler cpu',
+  'pasta térmica', 'pasta termica', 'dissipador cpu',
+  'switch 8 portas', 'switch 16 portas', 'cabo de rede cat',
   // Marcas chinesas obscuras
   'laikou', 'yesop', 'bamoer', 'kaukko', 'rolanstar',
   // Termos estrangeiros que não vendem bem no BR
