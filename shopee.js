@@ -193,6 +193,7 @@ function parsearLinha(r) {
     categoria2:    r.global_category2,
     categoria3:    r.global_category3,
     crossBorder:   ehInternacional(r.cb_option),  // novo (v3.6) — true se internacional
+    comissao:      parseFloat(String(r.commission_rate || r.seller_commission_rate || '0').replace(',', '.')),
   };
 }
 

@@ -241,6 +241,14 @@ function pontuarProduto(produto, hoje = new Date()) {
     score += 15;
   }
 
+  // Boost comissão (v3.15) — prioriza produtos com maior retorno financeiro
+  // A taxa de comissão do feed Shopee vai de ~3% a ~15%
+  // Produto com 8%+ de comissão vale mais que um com 3%, mesmo com desconto igual
+  const comissao = produto.comissao || 0;
+  if (comissao >= 10) score += 25;
+  else if (comissao >= 7) score += 15;
+  else if (comissao >= 5) score += 8;
+
   // Penalidade pra compra internacional (v3.6) — incentiva preferência nacional
   // Internacional ainda pode vencer se bater evento (+50) ou tendência forte (+30)
   if (produto.crossBorder) {

@@ -12,15 +12,58 @@ const IG_BELEZA_TOKEN   = process.env.INSTAGRAM_BELEZA_TOKEN;
 const IG_GERAL_USER_ID  = process.env.INSTAGRAM_GERAL_USER_ID;
 const IG_GERAL_TOKEN    = process.env.INSTAGRAM_GERAL_TOKEN;
 
-const HASHTAGS_BELEZA =
+// Hashtags base fixas (aparecem em todos os posts)
+const HASHTAGS_BASE_BELEZA =
   '#beleza #skincare #maquiagem #dicasdebeleza #cuidadospessoais ' +
   '#achadinhosdaroh #shopeebrasil #ofertasdodia #cosméticos ' +
   '#pele #cabelo #promoção #belezabarata #autocuidado #dicasdecompras';
 
-const HASHTAGS_GERAL =
+const HASHTAGS_BASE_GERAL =
   '#achadinhos #shopee #shopeebrasil #ofertasdodia #promoção ' +
   '#desconto #achadinhosdaroh #comprasonline #ofertarelampago ' +
   '#economize #dicasdecompras #achados #comprinhas #modabarata';
+
+// Hashtags extras por categoria (adicionadas dinamicamente conforme o produto)
+const HASHTAGS_EXTRAS = {
+  beleza:  '#makeupbrasil #skincarebr #rotinadebeleza #beautytips #skincaredicas',
+  cozinha: '#cozinhabr #kitchenbr #airfryerrecipes #receitasfaceis #cozinhando',
+  casa:    '#decoracaobr #homedecor #casabonita #organizacaocasa #decoração',
+  moda:    '#modabr #modafeminina #lookdodia #ootdbrasil #fashion',
+  tech:    '#tecnologia #gadgets #techbr #eletrônicos #techreview',
+  pet:     '#petbr #cachorro #gato #petlovers #pets',
+  bebe:    '#maternidade #bebê #maebr #gravidez #mamãe',
+  fitness: '#fitness #academia #treinoem casa #fitnessbr #saudeebemestar',
+  auto:    '#carros #autopeças #carrobr #automóveis #carro',
+};
+
+// Retorna hashtags base + extras por categoria do produto
+function gerarHashtags(produto, perfil) {
+  const base = perfil === 'beleza' ? HASHTAGS_BASE_BELEZA : HASHTAGS_BASE_GERAL;
+  const nome  = (produto.nome || '').toLowerCase();
+  const cat   = [produto.categoria1, produto.categoria2, produto.categoria3]
+    .filter(Boolean).join(' ').toLowerCase();
+  const texto = nome + ' ' + cat;
+
+  // Detecta qual categoria bate com o produto
+  const categoriaMap = {
+    beleza:  ['beleza', 'cosmétic', 'maquiagem', 'skincare', 'cabelo', 'perfume', 'creme'],
+    cozinha: ['cozinha', 'kitchen', 'panela', 'air fryer', 'utensílio', 'culinária', 'alimentação'],
+    casa:    ['casa', 'decoração', 'home', 'organização', 'cama', 'banho', 'tapete', 'cortina'],
+    moda:    ['moda', 'roupa', 'vestido', 'blusa', 'calça', 'tênis', 'bolsa', 'fashion', 'acessório'],
+    tech:    ['tech', 'eletrônico', 'fone', 'celular', 'computador', 'gadget', 'carregador'],
+    pet:     ['pet', 'cachorro', 'gato', 'animal', 'pata', 'felino', 'canino'],
+    bebe:    ['bebê', 'baby', 'infantil', 'criança', 'maternidade', 'kids'],
+    fitness: ['fitness', 'academia', 'treino', 'exercício', 'yoga', 'musculação'],
+    auto:    ['carro', 'veículo', 'automotivo', 'automóvel'],
+  };
+
+  for (const [cat, palavras] of Object.entries(categoriaMap)) {
+    if (palavras.some(p => texto.includes(p))) {
+      return base + '\n' + HASHTAGS_EXTRAS[cat];
+    }
+  }
+  return base;
+}
 
 async function postarNoInstagram(produto, perfil = 'geral') {
   const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
@@ -93,7 +136,7 @@ function formatarLegendaBeleza(produto, chamada) {
     `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `Achados de tudo? Segue a @achadinhosdaroh01 🛒\n\n` +
-    `${HASHTAGS_BELEZA}`
+    `${gerarHashtags(produto, 'beleza')}`
   );
 }
 
@@ -117,7 +160,7 @@ function formatarLegendaGeral(produto, chamada) {
     `   (e pra entrar no grupo VIP do WhatsApp 💬)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `Dicas de beleza? Segue a @byrosanamatias 💄\n\n` +
-    `${HASHTAGS_GERAL}`
+    `${gerarHashtags(produto, 'geral')}`
   );
 }
 
