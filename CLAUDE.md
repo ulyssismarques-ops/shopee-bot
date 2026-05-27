@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.14 (blocklist utilitários domésticos + diversificação por setor + campanha Copa)
+**Versão atual:** v3.18 (Reels ffmpeg + carrossel top3 + stories + status WA + comissao no score + hashtags por categoria + convite rotativo)
 
 ---
 
@@ -51,6 +51,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 | `instagram.js` | Meta Graph API: publica em 2 perfis (beleza/geral) com Page Tokens |
 | `landingpage.js` | Servidor Express com `/beleza` e `/geral` — destaque + grid dos últimos 25 produtos + botão WhatsApp |
 | `mensagem.js` | Formato da mensagem padrão Rosana (WhatsApp) |
+| `reels.js` | **NOVO v3.18** — gera MP4 de 7s com zoom suave via ffmpeg a partir da imagem do produto |
 | `historico.js` | Anti-repetição (ring buffer de 300 IDs) + metadados dos últimos 25 produtos por categoria (alimenta landing page) |
 | `package.json` | Deps |
 | `Dockerfile` | Build Railway (node:20-slim + git + openssh + build tools) |
@@ -90,6 +91,7 @@ Railway detecta o push em ~30s e faz redeploy em ~90s.
 | `HISTORICO_PATH` | `/data/historico.json` | anti-repetição |
 | `TZ` | `America/Sao_Paulo` | timezone para cron |
 | `WHATSAPP_GROUP_INVITE_URL` | `https://chat.whatsapp.com/IDkdxxWLoNm7jt2fvWQ7qc` | link de convite do grupo "Achadinhos da Roh #1" |
+| `RAILWAY_PUBLIC_URL` | `https://shopee-bot-production-e39e.up.railway.app` | URL publica do servico — usada pelo Reel pra servir o video pro Instagram |
 
 ### Instagram (Meta Graph API)
 
@@ -458,6 +460,30 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Tudo da v3.13 +
 - **Blocklist utilitários domésticos/industriais** — itens bloqueados mesmo quando keyword de campanha bate (ex: "capa botijão de gás" batia keyword 'churrasco'). Adicionados a `PALAVRAS_BLOQUEADAS`: botijão, mangueira gás, registro gás, cano pvc, cano hidráulico, furadeira, parafusadeira, betoneira, compressor de ar, disjuntor, quadro elétrico, caixa d'água, vaso sanitário, pia, chuveiro elétrico, e ~30 outros itens de plomeria/elétrica/construção.
 
+### v3.15 (26/05/2026)
+- Tudo da v3.14 +
+- **Comissão no score** — `shopee.js` captura `commission_rate` do CSV; `tendencias.js` aplica boost +8/+15/+25 pts por faixa (>=5%, >=7%, >=10%). Produtos com comissão alta sobem no ranking.
+- **Hashtags por categoria no Instagram** — `instagram.js` detecta categoria do produto (beleza, cozinha, casa, moda, tech, pet, bebê, fitness, auto) e adiciona hashtags específicas além das base fixas.
+- **Convite rotativo no WhatsApp** — `mensagem.js` exibe PS com link de convite a cada 3 mensagens (3 variações rotativas). Env var: `WHATSAPP_GROUP_INVITE_URL`.
+- **WhatsApp Status** — `whatsapp.js::postarStatus()` posta o produto destaque do ciclo como Story no WhatsApp (status@broadcast), aparece pra todos os contatos da Rosana. Chamado no `cicloWhatsApp()` após os 5 envios do grupo.
+
+### v3.16 (26/05/2026)
+- Tudo da v3.15 +
+- **Stories Instagram** — `instagram.js::postarStory()` usa `media_type=STORIES` na Meta Graph API. Chamado em `cicloInstagram()` logo após o post no feed. Cada ciclo de Instagram agora posta feed + story (aparece 24h no topo dos seguidores).
+
+### v3.17 (26/05/2026)
+- Tudo da v3.16 +
+- **Carrossel top 3 por categoria** — `instagram.js::postarCarrossel()` cria 3 containers individuais e agrupa num CAROUSEL (Meta Graph API). `cicloInstagram()` usa carrossel quando há 2+ produtos disponíveis. Caption lista os 3 produtos com preço e desconto. Mais saves + tempo de tela = favorecido pelo algoritmo.
+- **`selecionarTopN(produtos, n)`** — função auxiliar que ordena por desconto percentual e retorna os top N com imagem.
+
+### v3.18 (26/05/2026) — **EM PRODUÇÃO** ✅
+- Tudo da v3.17 +
+- **Reels Instagram via ffmpeg** — `reels.js` baixa imagem do CDN Shopee e roda ffmpeg para gerar MP4 de 7s com efeito Ken Burns (zoom suave 1.0→1.3). `instagram.js::postarReel()` serve o video via Express (`/reel/:file`) e posta como `media_type=REELS` na Meta Graph API. Aguarda 45s fixos pra processamento de video.
+- **Dockerfile**: `ffmpeg` adicionado ao apt-get install.
+- **landingpage.js**: rota `/reel/:file` serve videos temporários de `/data/` pra Meta API buscar.
+- **Horário dos Reels**: 10h/dia (1x por perfil, antes dos ciclos de feed/story).
+- **Env var**: `RAILWAY_PUBLIC_URL` (URL pública do Railway — usada pra montar o `video_url`).
+
 ---
 
 ## 🌍 URLs em produção
@@ -485,7 +511,3 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 **No Claude Web:**
 > "Preciso ajustar o shopee-bot da Rosana. Documentação completa no Obsidian: `Shopee Bot - Rosana - Documentação Completa.md`. [problema]"
 
-**No Claude Code (este arquivo já é lido automaticamente):**
-> "[descrição do problema/feature]"
-
-Claude já está em contexto.

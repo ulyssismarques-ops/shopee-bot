@@ -468,6 +468,18 @@ function iniciarServidor() {
     console.log(`   • /geral    → bio do @achadinhosdaroh01`);
   });
 
+  // Serve videos de Reels temporariamente (v3.18)
+  // Instagram busca o video_url durante a criacao do container
+  app.get('/reel/:file', (req, res) => {
+    const fs = require('fs');
+    const p = require('path');
+    const filename = p.basename(req.params.file);  // seguranca: sem path traversal
+    const filepath = `/data/${filename}`;
+    if (!fs.existsSync(filepath)) return res.status(404).send('not found');
+    res.setHeader('Content-Type', 'video/mp4');
+    res.sendFile(filepath);
+  });
+
   server.on('error', (err) => {
     console.error('❌ Servidor de landing page falhou:', err.message);
   });

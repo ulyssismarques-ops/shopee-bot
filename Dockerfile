@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     g++ \
     ca-certificates \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Força HTTPS em TODA URL que tentar usar SSH ou git://

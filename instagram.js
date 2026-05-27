@@ -302,4 +302,50 @@ async function postarCarrossel(produtos, perfil) {
   }
 }
 
-module.exports = { postarNoInstagram, postarCarrossel, postarStory, selecionarDestaque, selecionarTopN };
+/**
+ * Posta um Reel no Instagram (v3.18).
+ * Gera um MP4 de 7s com zoom suave a partir da imagem do produto (ffmpeg).
+ * Serve o video temporariamente via Express e posta como REELS na Meta API.
+ * railwayUrl: URL publica do servico (ex: shopee-bot-production-e39e.up.railway.app)
+ */
+async function postarReel(produto, perfil) {
+  const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
+  const token  = perfil === 'beleza' ? IG_BELEZA_TOKEN   : IG_GERAL_TOKEN;
+
+  if (!userId || !token || !produto.imagem) return;
+
+  const railwayUrl = process.env.RAILWAY_PUBLIC_URL || 'https://shopee-bot-production-e39e.up.railway.app';
+
+  try {
+    const { gerarVideoReel } = require('./reels');
+    await gerarVideoReel(produto.imagem, perfil);
+
+    const videoUrl = `${railwayUrl}/reel/reel_${perfil}.mp4`;
+    const chamada  = gerarChamada(produto, perfil);
+    const preco    = fmtBRL(produto.precoAtual);
+    const desc     = produto.desconto ? ` (-${produto.desconto}%)` : '';
+    const caption  = perfil === 'beleza'
+      ? `${chamada}\n\n${produto.nome}\n\nR$ ${preco}${desc}\n\n👆 Link na BIO pra comprar\n\n${gerarHashtags(produto, 'beleza')}`
+      : `${chamada}\n\n${produto.nome}\n\nR$ ${preco}${desc}\n\n👆 Link na BIO pra comprar\n\n${gerarHashtags(produto, 'geral')}`;
+
+    // Cria container de video (Instagram busca o video_url assincronamente)
+    const { data: container } = await axios.post(`${BASE_URL}/${userId}/media`, null, {
+      params: { video_url: videoUrl, media_type: 'REELS', caption, access_token: token }
+    });
+
+    // Video demora mais pra processar — aguarda 45s fixos
+    console.log(`  Aguardando processamento do Reel [${perfil}]...`);
+    await new Promise(r => setTimeout(r, 45000));
+
+    await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
+      params: { creation_id: container.id, access_token: token }
+    });
+
+    console.log(`  Reel Instagram [${perfil}]: publicado com sucesso.`);
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    console.warn(`  Reel [${perfil}] nao postado: ${msg}`);
+  }
+}
+
+module.exports = { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN };
