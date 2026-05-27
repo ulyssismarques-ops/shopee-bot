@@ -4,7 +4,7 @@ const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus }
 const { buscarProdutos, gerarLinkAfiliado, ehBeleza, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico } = require('./historico');
-const { postarNoInstagram, postarStory, selecionarDestaque } = require('./instagram');
+const { postarNoInstagram, postarCarrossel, postarStory, selecionarDestaque, selecionarTopN } = require('./instagram');
 const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID         = process.env.WHATSAPP_GROUP_ID;
@@ -79,13 +79,27 @@ async function cicloInstagram(perfil) {
   try {
     const produtos = await buscarProdutos(50);
     if (!produtos.length) { console.log(`Nenhum produto para ${perfil}.`); return; }
-    const filtrado = perfil === 'beleza' ? produtos.filter(ehBeleza) : produtos.filter(p => !ehBeleza(p));
-    const destaque = selecionarDestaque(filtrado);
-    if (!destaque) { console.log(`Sem destaque para ${perfil}.`); return; }
-    destaque.linkAfiliado = await gerarLinkAfiliado(destaque.url, destaque.linkAfiliado);
-    await postarNoInstagram(destaque, perfil);
 
-    // Posta Story logo apos o feed (v3.16) — aparece 24h no topo dos seguidores
+    const filtrado = perfil === 'beleza'
+      ? produtos.filter(ehBeleza)
+      : produtos.filter(p => !ehBeleza(p));
+
+    // Resolve links dos top 3 antes de postar (v3.17 — carrossel)
+    const top3 = selecionarTopN(filtrado, 3);
+    if (!top3.length) { console.log(`Sem produtos para ${perfil}.`); return; }
+    for (const p of top3) {
+      p.linkAfiliado = await gerarLinkAfiliado(p.url, p.linkAfiliado);
+    }
+
+    // Posta carrossel com os 3 melhores (se houver 2+), senao post simples
+    const destaque = top3[0];
+    if (top3.length >= 2) {
+      await postarCarrossel(filtrado, perfil);
+    } else {
+      await postarNoInstagram(destaque, perfil);
+    }
+
+    // Story com o produto destaque (v3.16)
     await postarStory(destaque, perfil);
 
     console.log(`Instagram [${perfil}] concluido.\n`);

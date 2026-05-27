@@ -218,4 +218,88 @@ async function postarStory(produto, perfil) {
   }
 }
 
-module.exports = { postarNoInstagram, postarStory, selecionarDestaque };
+/**
+ * Seleciona os top N produtos por desconto percentual.
+ */
+function selecionarTopN(produtos, n = 3) {
+  return [...produtos]
+    .sort((a, b) => {
+      const dA = a.precoOriginal ? (a.precoOriginal - a.precoAtual) / a.precoOriginal : 0;
+      const dB = b.precoOriginal ? (b.precoOriginal - b.precoAtual) / b.precoOriginal : 0;
+      return dB - dA;
+    })
+    .slice(0, n)
+    .filter(p => p.imagem);
+}
+
+/**
+ * Posta um carrossel com os top 3 produtos da categoria (v3.17).
+ * Cada imagem e um produto diferente — mais saves, mais tempo de tela.
+ */
+async function postarCarrossel(produtos, perfil) {
+  const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
+  const token  = perfil === 'beleza' ? IG_BELEZA_TOKEN   : IG_GERAL_TOKEN;
+
+  if (!userId || !token) return;
+
+  const top = selecionarTopN(produtos, 3);
+  if (top.length < 2) {
+    console.log(`  Poucos produtos com imagem para carrossel [${perfil}], pulando.`);
+    return null;
+  }
+
+  try {
+    // Passo 1: cria container individual pra cada imagem
+    const itemIds = [];
+    for (const p of top) {
+      const { data } = await axios.post(`${BASE_URL}/${userId}/media`, null, {
+        params: { image_url: p.imagem, is_carousel_item: true, access_token: token }
+      });
+      itemIds.push(data.id);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Passo 2: monta caption geral do carrossel
+    const chamada = gerarChamada(top[0], perfil);
+    const linhas = top.map((p, i) => {
+      const preco = fmtBRL(p.precoAtual);
+      const desc  = p.desconto ? ` (-${p.desconto}%)` : '';
+      return `${i + 1}. ${p.nome.slice(0, 60)} — R$ ${preco}${desc}`;
+    }).join('\n');
+
+    const caption = perfil === 'beleza'
+      ? `${chamada}\n\nTop 3 achados de beleza hoje:\n\n${linhas}\n\n` +
+        `👆 Toca no link da BIO pra comprar\n\n` +
+        `Achados de tudo? Segue a @achadinhosdaroh01 🛒\n\n${gerarHashtags(top[0], 'beleza')}`
+      : `${chamada}\n\nTop 3 achados do dia:\n\n${linhas}\n\n` +
+        `👆 Toca no link da BIO pra comprar\n\n` +
+        `Dicas de beleza? Segue a @byrosanamatias 💄\n\n${gerarHashtags(top[0], 'geral')}`;
+
+    // Passo 3: cria container do carrossel
+    const { data: carousel } = await axios.post(`${BASE_URL}/${userId}/media`, null, {
+      params: {
+        media_type: 'CAROUSEL',
+        children: itemIds.join(','),
+        caption,
+        access_token: token
+      }
+    });
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    // Passo 4: publica
+    await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
+      params: { creation_id: carousel.id, access_token: token }
+    });
+
+    console.log(`  🎠 Carrossel Instagram [${perfil}]: ${top.length} produtos publicados.`);
+    top.forEach(p => salvarProdutoPostado(p, perfil));
+    return top[0];
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    console.warn(`  Carrossel [${perfil}] nao postado: ${msg}`);
+    return null;
+  }
+}
+
+module.exports = { postarNoInstagram, postarCarrossel, postarStory, selecionarDestaque, selecionarTopN };
