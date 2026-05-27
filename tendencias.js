@@ -35,9 +35,17 @@ const CALENDARIO_BR = [
     palavras: ['casal', 'namorada', 'namorado', 'romântico', 'amor', 'coração', 'presente casal', 'pijama casal', 'chocolate', 'caneca casal', 'pelúcia', 'almofada coração', 'aliança', 'colar coração', 'porta-retrato casal', 'kit relacionamento', 'jogo casal'],
   },
   {
+    // Abertura do torneio — campanha começa 21 dias antes (21/05)
     mes: 6, dia: 11, nome: 'Copa do Mundo 2026',
-    // 'verde amarelo' removido — capturava LED lamps e produtos genéricos verdes/amarelos
-    // 'brasil' sozinho removido — muito genérico (ex: "kit brasil" de outros nichos)
+    palavras: ['seleção brasileira', 'camisa brasil', 'camiseta brasil', 'bandeira brasil',
+               'cbf', 'bola futebol', 'chuteira', 'futebol brasil',
+               'churrasco', 'isopor', 'caixa térmica', 'copo cervejaria',
+               'kit churrasco', 'cooler'],
+  },
+  {
+    // Final do torneio (19/07) — mantém boost durante todo o mês da Copa
+    // Campanha ativa de 28/06 a 19/07, cobrindo a segunda fase do torneio
+    mes: 7, dia: 19, nome: 'Copa do Mundo 2026',
     palavras: ['seleção brasileira', 'camisa brasil', 'camiseta brasil', 'bandeira brasil',
                'cbf', 'bola futebol', 'chuteira', 'futebol brasil',
                'churrasco', 'isopor', 'caixa térmica', 'copo cervejaria',
