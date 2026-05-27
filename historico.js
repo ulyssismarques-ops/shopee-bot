@@ -92,10 +92,27 @@ function lerProdutosPostados(categoria) {
   return [];
 }
 
+// v3.24 — Conta posts feitos nas últimas N horas, por canal.
+// Usado pelo health check diário às 23h.
+function contarPostsRecentes(horas = 24) {
+  const hist = ler();
+  const limite = Date.now() - horas * 60 * 60 * 1000;
+  const recentes = (arr) => arr.filter(p => {
+    const t = new Date(p.postadoEm).getTime();
+    return !Number.isNaN(t) && t >= limite;
+  }).length;
+  return {
+    beleza:    recentes(hist.postadosBeleza),
+    geral:     recentes(hist.postadosGeral),
+    waEnviados: (hist.enviados || []).length,  // ring buffer, não temos timestamps individuais
+  };
+}
+
 module.exports = {
   filtrarNovos,
   marcarEnviados,
   resetarHistorico,
   salvarProdutoPostado,
   lerProdutosPostados,
+  contarPostsRecentes,
 };

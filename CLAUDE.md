@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.23 (Hashtags rotativas + test.js local + .env.example atualizado)
+**Versão atual:** v3.24 (Bloqueio erótico + Status WA 1x/dia + Health check diário)
 
 ---
 
@@ -502,7 +502,27 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.23 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Hashtags rotativas + test.js local
+### v3.24 (27/05/2026 tarde) — **EM PRODUÇÃO** ✅ — Bloqueio erótico + Status WA 1x + Health check
+- **Bloqueio de conteúdo erótico** (feedback: "nao quero que va uma coisa erotica nas publicaçoes"):
+  - Categoria `'adult', 'sex toys', 'intimate items', 'erotic', 'adult products'` adicionada à CATEGORIAS_BLOQUEADAS
+  - 40+ palavras adicionadas à PALAVRAS_BLOQUEADAS: vibrador, consolo, dildo, sex toy, masturbador, plug anal, lubrificante íntimo, gel lubrificante, fantasia erótica, lingerie sexy, kit sexy, fetiche, etc.
+  - Termos cuidadosos pra não barrar produto legítimo (kit casal Namorados passa, almofada casal passa)
+- **M3: Status WA reduzido a 1x/dia** (era 2x — feedback "nao saturar contatos"):
+  - Cycle WA continua rodando 12h+20h
+  - Mas `postarStatus` só dispara se hora == 20h
+  - 12h vira disparo silencioso de grupo (só mensagens, sem Status)
+- **M1: Health check diário** (feedback: "monitoramento ativo"):
+  - Cron diário às 23h chama `healthCheck()`
+  - Lê `contarPostsRecentes(24)` do historico.js (nova função)
+  - Reporta no log com `═══════` destacado:
+    - IG geral: esperado ≥4 posts/24h
+    - IG beleza: esperado ≥1 post/24h
+    - WhatsApp: contador de IDs no ring buffer (sem timestamp individual)
+  - Se algo falhou → marca `❌ FALHOU` e `🔴 ALGO FALHOU`
+  - Se tudo ok → `🟢 TUDO OK — bot rodando saudável`
+  - Visível no log do Railway nas 23h em diante
+
+### v3.23 (27/05/2026 manhã) — Hashtags rotativas + test.js local
 - **M2: Hashtags rotativas** (instagram.js) — Instagram pune contas que repetem mesmas hashtags todo dia. Solução: 3 conjuntos por categoria (HASHTAGS_BASE_*, HASHTAGS_EXTRAS) rotacionados por `dia do mês % 3`.
   - Dia 1, 4, 7, 10… → conjunto A
   - Dia 2, 5, 8, 11… → conjunto B

@@ -29,6 +29,8 @@ const CATEGORIAS_BLOQUEADAS = [
   // Hobby muito nicho
   'cameras & drones', 'photography', 'pro audio',
   'musical instrument', 'collectibles', 'cosplay',
+  // Adulto / erótico — NUNCA postar (v3.24)
+  'adult', 'sex toys', 'intimate items', 'erotic', 'adult products',
 ];
 
 // Palavras bloqueadas no nome do produto (case-insensitive, substring)
@@ -77,6 +79,23 @@ const PALAVRAS_BLOQUEADAS = [
   // Termos estrangeiros que não vendem bem no BR
   'whitening', 'estilo chinês', 'estilo chines',
   'estilo japonês', 'estilo japones', 'estilo coreano',
+  // Adulto / erótico — NUNCA postar (v3.24)
+  // Bloqueia produtos com qualquer uma dessas palavras no nome
+  'vibrador', 'consolo', 'consolador', 'dildo', 'sex toy', 'sextoy',
+  'masturbador', 'masturbadora', 'plug anal', 'anel peniano',
+  'lubrificante íntimo', 'lubrificante intimo', 'gel lubrificante',
+  'gel íntimo', 'gel intimo', 'estimulador clitoriano', 'estimulador',
+  'fantasia erótica', 'fantasia erotica', 'fantasia sensual',
+  'fantasia sexy', 'lingerie sexy', 'lingerie sensual',
+  'calcinha fio dental', 'tanga sexy', 'sutiã sexy', 'sutia sexy',
+  'baby doll sensual', 'baby doll sexy', 'cueca sexy',
+  'kit sexy', 'kit erótico', 'kit erotico', 'kit sensual',
+  'fetiche', 'bondage', 'algema sexy', 'venda dos olhos',
+  'óleo sensual', 'oleo sensual', 'óleo afrodisíaco',
+  'massageador íntimo', 'massageador intimo', 'massageador g',
+  'preservativo', 'camisinha', 'lubrificante',
+  'pênis', 'penis ', 'vagina ', 'clitóris', 'clitoris',
+  'erotic', 'sex shop', 'sexshop',
 ];
 
 async function baixarFeedStreaming() {
