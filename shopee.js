@@ -2,7 +2,7 @@ const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const fs = require('fs');
 const path = require('path');
-const { pontuarProduto, descreverContexto } = require('./tendencias');
+const { pontuarProduto, descreverContexto, CALENDARIO_BR } = require('./tendencias');
 
 const FEED_URL = process.env.SHOPEE_FEED_URL || '';
 const CACHE_PATH = '/data/feed_cache.csv';
@@ -308,26 +308,85 @@ function classificarSetor(produto) {
 }
 
 /**
- * Seleciona `quantidade` produtos diversificados — 1 por setor no máximo.
+ * Seleciona `quantidade` produtos com duas estratégias:
+ *
+ * MODO CAMPANHA (evento ≤ 14 dias):
+ *   - 3 slots: melhores produtos da campanha (por score — scoring já os priorizou)
+ *   - 2 slots: produtos de setores distintos NÃO cobertos pelos 3 de campanha
+ *   Garante que a lista seja dominada pela data comemorativa sem ser monótona.
+ *
+ * MODO NORMAL (sem evento próximo):
+ *   - 5 slots: 1 por setor, completa com melhores restantes se faltar variedade.
+ *
  * Pressupõe que `produtos` já está ordenado por score decrescente.
- * Se não houver setores suficientes, completa com os melhores restantes.
  */
 function diversificarSelecao(produtos, quantidade = 5) {
+  const hoje = new Date();
+
+  // Descobre eventos com campanha ativa (≤ 14 dias)
+  const eventosCampanha = CALENDARIO_BR.filter(ev => {
+    const ano = hoje.getFullYear();
+    let d = new Date(ano, ev.mes - 1, ev.dia);
+    if (d < hoje) d = new Date(ano + 1, ev.mes - 1, ev.dia);
+    return Math.floor((d - hoje) / 86400000) <= 14;
+  });
+
   const selecionados = [];
-  const setoresUsados = new Set();
 
-  // 1ª passagem: melhor de cada setor
-  for (const p of produtos) {
-    if (selecionados.length >= quantidade) break;
-    const setor = classificarSetor(p);
-    if (!setoresUsados.has(setor)) {
-      selecionados.push({ ...p, _setor: setor });
-      setoresUsados.add(setor);
+  if (eventosCampanha.length > 0) {
+    // ── MODO CAMPANHA ──────────────────────────────────────────────────────
+    const kwsCampanha = eventosCampanha.flatMap(ev => ev.palavras);
+    const ehCampanha  = p => kwsCampanha.some(kw => (p.nome || '').toLowerCase().includes(kw));
+
+    const deCampanha = produtos.filter(ehCampanha);
+    const gerais     = produtos.filter(p => !ehCampanha(p));
+
+    // Slot 1-3: melhores produtos da campanha (score já os ordenou)
+    const maxCampanha = Math.min(3, deCampanha.length, quantidade);
+    for (const p of deCampanha) {
+      if (selecionados.length >= maxCampanha) break;
+      selecionados.push({ ...p, _setor: classificarSetor(p) });
     }
-  }
 
-  // 2ª passagem: completa slots restantes com os melhores não usados
-  if (selecionados.length < quantidade) {
+    // Slot 4-5: setores distintos dos já usados (complementa com diversidade)
+    const setoresUsados = new Set(selecionados.map(p => p._setor));
+    const usados        = new Set(selecionados.map(p => p.id));
+    for (const p of gerais) {
+      if (selecionados.length >= quantidade) break;
+      const s = classificarSetor(p);
+      if (!setoresUsados.has(s)) {
+        selecionados.push({ ...p, _setor: s });
+        setoresUsados.add(s);
+        usados.add(p.id);
+      }
+    }
+
+    // Completa sem restrição se ainda faltar (feed pequeno)
+    const usados2 = new Set(selecionados.map(p => p.id));
+    for (const p of produtos) {
+      if (selecionados.length >= quantidade) break;
+      if (!usados2.has(p.id)) {
+        selecionados.push({ ...p, _setor: classificarSetor(p) });
+        usados2.add(p.id);
+      }
+    }
+
+    const nomeEventos  = eventosCampanha.map(e => e.nome).join(' + ');
+    const qtdCampanha  = selecionados.filter(ehCampanha).length;
+    console.log(`   🎯 Modo campanha [${nomeEventos}]: ${qtdCampanha} campanha + ${selecionados.length - qtdCampanha} diversidade`);
+
+  } else {
+    // ── MODO NORMAL ────────────────────────────────────────────────────────
+    const setoresUsados = new Set();
+    for (const p of produtos) {
+      if (selecionados.length >= quantidade) break;
+      const s = classificarSetor(p);
+      if (!setoresUsados.has(s)) {
+        selecionados.push({ ...p, _setor: s });
+        setoresUsados.add(s);
+      }
+    }
+    // Completa slots restantes com os melhores não usados
     const usados = new Set(selecionados.map(p => p.id));
     for (const p of produtos) {
       if (selecionados.length >= quantidade) break;
@@ -336,9 +395,10 @@ function diversificarSelecao(produtos, quantidade = 5) {
         usados.add(p.id);
       }
     }
+
+    console.log(`   🎨 Modo normal — setores: ${selecionados.map(p => p._setor).join(', ')}`);
   }
 
-  console.log(`   🎨 Setores selecionados: ${selecionados.map(p => p._setor).join(', ')}`);
   return selecionados;
 }
 

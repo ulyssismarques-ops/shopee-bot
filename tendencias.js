@@ -36,7 +36,12 @@ const CALENDARIO_BR = [
   },
   {
     mes: 6, dia: 11, nome: 'Copa do Mundo 2026',
-    palavras: ['brasil', 'seleção brasileira', 'futebol', 'bandeira brasil', 'verde amarelo', 'camisa brasil', 'cbf', 'bola futebol', 'chuteira', 'cooler', 'churrasco', 'isopor', 'caixa térmica', 'taça', 'copo cervejaria', 'decoração brasil'],
+    // 'verde amarelo' removido — capturava LED lamps e produtos genéricos verdes/amarelos
+    // 'brasil' sozinho removido — muito genérico (ex: "kit brasil" de outros nichos)
+    palavras: ['seleção brasileira', 'camisa brasil', 'camiseta brasil', 'bandeira brasil',
+               'cbf', 'bola futebol', 'chuteira', 'futebol brasil',
+               'churrasco', 'isopor', 'caixa térmica', 'copo cervejaria',
+               'kit churrasco', 'cooler'],
   },
   {
     mes: 6, dia: 24, nome: 'São João / Festa Junina',
