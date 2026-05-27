@@ -459,17 +459,9 @@ function iniciarServidor() {
 
   app.get('/health', (req, res) => res.json({ ok: true }));
 
-  app.use((req, res) => res.redirect('/'));
-
-  const server = app.listen(PORT, () => {
-    console.log(`🌐 Landing page online em http://0.0.0.0:${PORT}`);
-    console.log(`   • /         → escolha de perfil`);
-    console.log(`   • /beleza   → bio do @byrosanamatias`);
-    console.log(`   • /geral    → bio do @achadinhosdaroh01`);
-  });
-
-  // Serve videos de Reels temporariamente (v3.18)
-  // Instagram busca o video_url durante a criacao do container
+  // Serve videos de Reels (v3.18) e imagens 9:16 de Stories (v3.20)
+  // Instagram busca a URL durante a criacao do container — DEVE ser definido
+  // antes do catch-all redirect (B1: ordem do Express importa)
   app.get('/reel/:file', (req, res) => {
     const fs = require('fs');
     const p = require('path');
@@ -477,7 +469,29 @@ function iniciarServidor() {
     const filepath = `/data/${filename}`;
     if (!fs.existsSync(filepath)) return res.status(404).send('not found');
     res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Cache-Control', 'public, max-age=300');
     res.sendFile(filepath);
+  });
+  app.get('/story/:file', (req, res) => {
+    const fs = require('fs');
+    const p = require('path');
+    const filename = p.basename(req.params.file);
+    const filepath = `/data/${filename}`;
+    if (!fs.existsSync(filepath)) return res.status(404).send('not found');
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.sendFile(filepath);
+  });
+
+  app.use((req, res) => res.redirect('/'));
+
+  const server = app.listen(PORT, () => {
+    console.log(`🌐 Landing page online em http://0.0.0.0:${PORT}`);
+    console.log(`   • /         → escolha de perfil`);
+    console.log(`   • /beleza   → bio do @byrosanamatias`);
+    console.log(`   • /geral    → bio do @achadinhosdaroh01`);
+    console.log(`   • /reel/:f  → serve MP4 do Reel (Meta API busca)`);
+    console.log(`   • /story/:f → serve JPG 9:16 do Story (Meta API busca)`);
   });
 
   server.on('error', (err) => {

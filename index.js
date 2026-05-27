@@ -132,7 +132,7 @@ async function cicloReels(perfil) {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.15 iniciando...');
+  console.log('Shopee Bot v3.20 iniciando (fix Reels/Stories 9:16 + audio + rotas Express)...');
   iniciarServidor();
   await conectarWhatsApp();
 

@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.19 (Word-boundary matching + penalidade evento longe + bloqueio spam de busca)
+**Versão atual:** v3.20 (Fix Reels/Stories nunca funcionaram + ordem rotas Express + erros visíveis)
 
 ---
 
@@ -456,7 +456,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - Tudo da v3.12 +
 - **Copa do Mundo cobre torneio inteiro** — antes: entrada única em `CALENDARIO_BR` para 11/06 (abertura) fazia o boost expirar no dia 12/06. Agora: segunda entrada em 19/07 (final do torneio). Boost copa ativo em dois períodos: 21/05–11/06 (abertura) e 28/06–19/07 (final). Gap 12–27/06 sem boost aceito como aceitável.
 
-### v3.14 (26/05/2026) — **EM PRODUÇÃO** ✅
+### v3.14 (26/05/2026)
 - Tudo da v3.13 +
 - **Blocklist utilitários domésticos/industriais** — itens bloqueados mesmo quando keyword de campanha bate (ex: "capa botijão de gás" batia keyword 'churrasco'). Adicionados a `PALAVRAS_BLOQUEADAS`: botijão, mangueira gás, registro gás, cano pvc, cano hidráulico, furadeira, parafusadeira, betoneira, compressor de ar, disjuntor, quadro elétrico, caixa d'água, vaso sanitário, pia, chuveiro elétrico, e ~30 outros itens de plomeria/elétrica/construção.
 
@@ -484,7 +484,7 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Horário dos Reels**: 10h/dia (1x por perfil, antes dos ciclos de feed/story).
 - **Env var**: `RAILWAY_PUBLIC_URL` (URL pública do Railway — usada pra montar o `video_url`).
 
-### v3.19 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅
+### v3.19 (27/05/2026 manhã)
 - Tudo da v3.18 +
 - **Fix do substring matching** que estava deixando bugs grotescos passarem:
   - "coração" matchava "decoração" → **Luzes de Natal pegavam chamada "Bora surpreender o amor"** 😱
@@ -501,6 +501,26 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ achado` (ex: "Top 3 achados do dia: 1, Kit...")
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
+
+### v3.20 (27/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Análise profunda + 6 fixes críticos
+Análise revelou que **Reels e Stories NUNCA funcionaram** desde a v3.16/v3.18 — o usuário só descobriu agora olhando o Instagram. Causas encontradas:
+
+- **B1 — Rota Express engolida** ([landingpage.js](landingpage.js)): `app.get('/reel/:file')` estava declarada DEPOIS do `app.use((req, res) => res.redirect('/'))`. Como Express respeita ordem, o catch-all engolia todos os requests. Resultado: Meta API tentava baixar `/reel/...` e recebia HTTP 302 (redirect) → Reel NUNCA postava. Confirmado via `curl` ao vivo: respondia 302.
+  - Fix: rotas `/reel/:file` e `/story/:file` movidas ANTES do catch-all
+- **B2 — Reel em 1080x1080 (square)** ([reels.js](reels.js)): Meta API rejeita Reels que não sejam 9:16 (1080x1920 vertical).
+  - Fix: ffmpeg agora gera 1080x1920 com produto centralizado sobre fundo desfocado (mesma imagem com `gblur sigma=30`)
+- **B3 — Reel sem audio track**: Meta API exige audio em Reels — sem audio o algoritmo despreza.
+  - Fix: adicionado `-f lavfi -i anullsrc` (audio silencioso AAC) com `-shortest`
+- **B4 — Story com imagem 1:1**: Meta API exige 9:16 pra Stories. Imagem da Shopee é quadrada.
+  - Fix: nova função `gerarImagemStory()` em `reels.js` gera JPEG 1080x1920 e o `postarStory` agora usa URL `/story/story_<perfil>.jpg`
+- **B5 — `diversificarSelecao` ainda usava substring**: mesmo bug do "coração em decoração", afetava seleção em modo campanha.
+  - Fix: substituído `.includes(kw)` por `palavraEstaNoNome(kw, nome)`
+- **B6 — Hashtag bugada `#treinoem casa`**: virava 2 hashtags quebradas.
+  - Fix: removido espaço → `#treinoemcasa`
+- **B7 — Erros silenciados com `console.warn`**: por isso ninguém sabia que Reels/Stories falhavam.
+  - Fix: `console.error` com `❌` e código de erro Meta API nos pontos críticos (postarStory, postarCarrossel, postarReel)
+- Log de boot atualizado: era "v3.15" há tempos → agora "v3.20"
+- Rotas `/reel/:file` e `/story/:file` agora também têm `Cache-Control: max-age=300` (Meta cacheia 5min)
 
 ---
 

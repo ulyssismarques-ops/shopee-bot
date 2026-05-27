@@ -2,7 +2,7 @@ const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const fs = require('fs');
 const path = require('path');
-const { pontuarProduto, descreverContexto, CALENDARIO_BR } = require('./tendencias');
+const { pontuarProduto, descreverContexto, CALENDARIO_BR, palavraEstaNoNome } = require('./tendencias');
 
 const FEED_URL = process.env.SHOPEE_FEED_URL || '';
 const CACHE_PATH = '/data/feed_cache.csv';
@@ -361,7 +361,8 @@ function diversificarSelecao(produtos, quantidade = 5) {
   if (eventosCampanha.length > 0) {
     // ── MODO CAMPANHA ──────────────────────────────────────────────────────
     const kwsCampanha = eventosCampanha.flatMap(ev => ev.palavras);
-    const ehCampanha  = p => kwsCampanha.some(kw => (p.nome || '').toLowerCase().includes(kw));
+    // v3.20: usa palavra inteira (não substring) — evita "coração" em "decoração"
+    const ehCampanha  = p => kwsCampanha.some(kw => palavraEstaNoNome(kw, (p.nome || '').toLowerCase()));
 
     const deCampanha = produtos.filter(ehCampanha);
     const gerais     = produtos.filter(p => !ehCampanha(p));

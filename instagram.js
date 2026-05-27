@@ -32,7 +32,7 @@ const HASHTAGS_EXTRAS = {
   tech:    '#tecnologia #gadgets #techbr #eletrônicos #techreview',
   pet:     '#petbr #cachorro #gato #petlovers #pets',
   bebe:    '#maternidade #bebê #maebr #gravidez #mamãe',
-  fitness: '#fitness #academia #treinoem casa #fitnessbr #saudeebemestar',
+  fitness: '#fitness #academia #treinoemcasa #fitnessbr #saudeebemestar',
   auto:    '#carros #autopeças #carrobr #automóveis #carro',
 };
 
@@ -185,10 +185,14 @@ function fmtBRL(valor) {
 }
 
 /**
- * Posta um Story no Instagram (v3.16).
- * Usa o mesmo endpoint da feed, mas com media_type=STORIES.
- * O story aparece por 24h e fica no topo do feed dos seguidores.
- * Nao tem caption visivel — a imagem fala por si.
+ * Posta um Story no Instagram (v3.16, ajustado em v3.20).
+ *
+ * Bug fixado: Meta API exige imagem 9:16 (1080x1920) pra Stories.
+ * Imagens da Shopee são quadradas — ficavam recortadas feio ou rejeitadas.
+ * Agora gera imagem 9:16 via ffmpeg (produto centralizado + fundo desfocado)
+ * e serve via /story/:file pra Meta API buscar.
+ *
+ * O story aparece por 24h. Não tem caption visível — a imagem fala por si.
  */
 async function postarStory(produto, perfil) {
   const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
@@ -196,14 +200,22 @@ async function postarStory(produto, perfil) {
 
   if (!userId || !token || !produto.imagem) return;
 
+  const railwayUrl = process.env.RAILWAY_PUBLIC_URL || 'https://shopee-bot-production-e39e.up.railway.app';
+
   try {
+    // Gera imagem 9:16 (1080x1920) com produto centralizado e fundo desfocado
+    const { gerarImagemStory } = require('./reels');
+    await gerarImagemStory(produto.imagem, perfil);
+
+    const imageUrl = `${railwayUrl}/story/story_${perfil}.jpg`;
+
     const { data: container } = await axios.post(
       `${BASE_URL}/${userId}/media`,
       null,
-      { params: { image_url: produto.imagem, media_type: 'STORIES', access_token: token } }
+      { params: { image_url: imageUrl, media_type: 'STORIES', access_token: token } }
     );
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 8000));  // 8s pra processar imagem 9:16
 
     await axios.post(
       `${BASE_URL}/${userId}/media_publish`,
@@ -214,7 +226,8 @@ async function postarStory(produto, perfil) {
     console.log(`  📖 Story Instagram [${perfil}]: publicado.`);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.warn(`  Story [${perfil}] nao postado: ${msg}`);
+    const code = err.response?.data?.error?.code;
+    console.error(`  ❌ Story [${perfil}] FALHOU: ${msg}${code ? ' (code ' + code + ')' : ''}`);
   }
 }
 
@@ -297,7 +310,8 @@ async function postarCarrossel(produtos, perfil) {
     return top[0];
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.warn(`  Carrossel [${perfil}] nao postado: ${msg}`);
+    const code = err.response?.data?.error?.code;
+    console.error(`  ❌ Carrossel [${perfil}] FALHOU: ${msg}${code ? ' (code ' + code + ')' : ''}`);
     return null;
   }
 }
@@ -341,10 +355,11 @@ async function postarReel(produto, perfil) {
       params: { creation_id: container.id, access_token: token }
     });
 
-    console.log(`  Reel Instagram [${perfil}]: publicado com sucesso.`);
+    console.log(`  🎬 Reel Instagram [${perfil}]: publicado com sucesso.`);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.warn(`  Reel [${perfil}] nao postado: ${msg}`);
+    const code = err.response?.data?.error?.code;
+    console.error(`  ❌ Reel [${perfil}] FALHOU: ${msg}${code ? ' (code ' + code + ')' : ''}`);
   }
 }
 
