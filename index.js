@@ -13,9 +13,12 @@ const QTD_PRODUTOS     = 5;
 const DELAY_ENTRE_MSGS = 4000;
 const TZ               = 'America/Sao_Paulo';
 
-const HORARIOS_WHATSAPP = ['0 12 * * *', '0 20 * * *'];
+// v3.29 — frequência reduzida pra 1x/dia em todos os canais (pico das 20h)
+// Antes: WhatsApp 2x + IG geral 5x = 11 disparos diários (parecia spam)
+// Agora: 3 canais juntos às 20h = 3 disparos no dia, todos no pico de engajamento
+const HORARIOS_WHATSAPP = ['0 20 * * *'];
 const HORARIOS_IG_BELEZA = ['0 20 * * *'];
-const HORARIOS_IG_GERAL = ['0 8 * * *', '0 11 * * *', '0 14 * * *', '0 17 * * *', '0 20 * * *'];
+const HORARIOS_IG_GERAL  = ['0 20 * * *'];
 
 // Reels: 1x/dia por perfil, horario diferente do feed pra diversificar o dia
 const HORARIOS_REELS_BELEZA = ['0 10 * * *'];
@@ -262,11 +265,11 @@ async function main() {
 
   new CronJob(HORARIO_HEALTH_CHECK, healthCheck, null, true, TZ);
 
-  console.log('\nScheduler ativo:');
-  console.log('   WhatsApp:         12h, 20h (5 produtos cada)');
-  console.log('   Status WA:        20h (1x/dia, antes era 2x — feedback M3)');
-  console.log('   IG beleza:        20h');
-  console.log('   IG geral:         8h, 11h, 14h, 17h, 20h');
+  console.log('\nScheduler ativo (v3.29 — frequência reduzida):');
+  console.log('   WhatsApp:         20h (1x/dia, 5 produtos) — era 12h+20h');
+  console.log('   Status WA:        20h (1x/dia)');
+  console.log('   IG beleza:        20h (1x/dia)');
+  console.log('   IG geral:         20h (1x/dia) — era 5x/dia, reduzido pra evitar feed cheio');
   console.log('   Reels (beleza+geral): 10h (ffmpeg 9:16 com audio)');
   console.log('   Health check:     23h (relatório diário no log)');
 

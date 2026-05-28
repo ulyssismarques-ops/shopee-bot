@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.28 (Logging Meta API completo + detecta publish silenciosamente rejeitado)
+**Versão atual:** v3.29 (Frequência reduzida pra 1x/dia em todos os canais — pico das 20h)
 
 ---
 
@@ -502,7 +502,23 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.28 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Logging Meta API completo
+### v3.29 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Frequência reduzida pra 1x/dia
+Feedback do usuário olhando o feed do `@achadinhosdaroh01`: posts antigos sumiam do feed rápido (5x/dia enche tudo) e WhatsApp 2x/dia parecia spam. Confirmado também via screenshot que post das 11h saiu corretamente:
+> "🍂 Mudança de estação — bora se preparar: Top 3 achados do dia — Garrafa Térmica, Lingerie Térmica, Kit Cobre Leito" + carrossel com 3 fotos
+
+Mudanças:
+- **WhatsApp:** 12h + 20h → **20h apenas** (1x/dia, 5 produtos)
+- **IG @achadinhosdaroh01:** 8h, 11h, 14h, 17h, 20h → **20h apenas** (1x/dia)
+- **IG @byrosanamatias:** 20h (mantido)
+- Resultado: 3 disparos no dia, todos juntos às 20h (pico de engajamento)
+
+Bônus colateral:
+- Reduz risco de Meta marcar conta como automação agressiva (5x/dia em conta de 178 followers era suspeito)
+- Cada post fica mais tempo visível no topo do feed
+- Status WA continua só às 20h (já estava em M3, agora coincide com o disparo)
+- Reels e Health Check inalterados
+
+### v3.28 (28/05/2026 manhã) — Logging Meta API completo
 Usuário reportou que `@achadinhosdaroh01` tem 8 publicações totais mas a landing `/geral` mostra produtos muito mais recentes (Kit Cobre Leito, Z&D Lingerie Térmica...). Discrepância: bot salva no historico mas posts não aparecem no feed.
 
 Hipótese: Meta API retorna `success` (sem throw) mas o post **não é publicado de fato**. Causas possíveis:
