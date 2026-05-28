@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.25 (Fix BOM no CSV → shop_rating volta a funcionar)
+**Versão atual:** v3.26 (Alerta visível + retry 30s no ciclo WhatsApp quando desconectado)
 
 ---
 
@@ -502,7 +502,19 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.25 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Fix BOM no CSV
+### v3.26 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Alerta WhatsApp desconectado
+Usuário reportou que último disparo no grupo WA foi 27/05 12h. IG continuou funcionando (8h do 28/05 saiu), então o problema é específico do WhatsApp.
+
+- Nova função `whatsappConectado()` em `whatsapp.js` exporta status `isConnected`
+- Nova função `aguardarConexao(timeoutMs)` poll a cada 1s até conectar ou timeout
+- `cicloWhatsApp()` agora checa explicitamente antes de tentar enviar:
+  - Se desconectado, mostra ALERTA destacado nos logs (`⚠️` × 20)
+  - Aguarda até 30s pra reconexão automática do Baileys
+  - Se ainda desconectado, mostra ❌ × 40 com diagnóstico das causas prováveis
+  - Aborta o disparo sem trycatch silencioso
+- Antes: erro de "WhatsApp não está conectado" caía no catch e logava só 1 linha. Agora é destacado e diagnóstico.
+
+### v3.25 (28/05/2026 manhã) — Fix BOM no CSV
 Descoberto olhando logs do disparo de 8h em 28/05:
 ```
 🔍 TODAS as chaves: ["﻿shop_rating", ...]   ← invisível mas tem BOM antes

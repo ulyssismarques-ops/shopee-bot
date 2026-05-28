@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { CronJob } = require('cron');
-const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus } = require('./whatsapp');
+const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus, whatsappConectado, aguardarConexao } = require('./whatsapp');
 const { buscarProdutos, gerarLinkAfiliado, ehBeleza, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico, contarPostsRecentes } = require('./historico');
@@ -29,6 +29,29 @@ async function cicloWhatsApp() {
   console.log(`\n[${hora}] Iniciando disparo WhatsApp...`);
 
   if (!GRUPO_ID) { console.error('WHATSAPP_GROUP_ID nao configurado.'); return; }
+
+  // v3.26 — checagem explícita de conexão WhatsApp antes de tentar enviar.
+  // Se cair, aguarda até 30s pela reconexão automática do Baileys.
+  if (!whatsappConectado()) {
+    console.error('\n' + '⚠️ '.repeat(20));
+    console.error('⚠️  ATENÇÃO: WhatsApp DESCONECTADO no momento do cron!');
+    console.error('⚠️  Aguardando até 30s pela reconexão automática...');
+    console.error('⚠️ '.repeat(20));
+    const reconectou = await aguardarConexao(30000);
+    if (!reconectou) {
+      console.error('\n' + '❌'.repeat(40));
+      console.error('❌  WhatsApp NÃO RECONECTOU em 30s. Disparo PERDIDO.');
+      console.error('❌  Causas possíveis:');
+      console.error('❌   1. Sessão deslogada (alguém saiu de "Aparelhos conectados")');
+      console.error('❌   2. Conexão instável');
+      console.error('❌   3. WhatsApp do número da Rosana foi bloqueado/banido');
+      console.error('❌  Ação: Railway → Deployments → View Logs → buscar "Sessão encerrada"');
+      console.error('❌  Se logout: deletar /data/baileys_auth e rescanear QR');
+      console.error('❌'.repeat(40) + '\n');
+      return;
+    }
+    console.log('✅  WhatsApp reconectou a tempo!');
+  }
 
   try {
     const produtos = await buscarProdutos(50);

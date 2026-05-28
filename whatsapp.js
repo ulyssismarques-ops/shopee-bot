@@ -178,4 +178,19 @@ async function listarGrupos() {
   }
 }
 
-module.exports = { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, listarGrupos, postarStatus };
+// Status pra outros módulos verificarem antes de chamar
+function whatsappConectado() {
+  return isConnected && !!sock;
+}
+
+// Aguarda até `timeoutMs` pelo WhatsApp reconectar. Retorna true se conectou.
+async function aguardarConexao(timeoutMs = 30000) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < timeoutMs) {
+    if (whatsappConectado()) return true;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return whatsappConectado();
+}
+
+module.exports = { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, listarGrupos, postarStatus, whatsappConectado, aguardarConexao };
