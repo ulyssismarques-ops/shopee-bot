@@ -134,6 +134,9 @@ async function baixarFeedStreaming() {
   console.log(`✅ Feed baixado: ${(tamanho / 1024 / 1024).toFixed(1)}MB em ${segundos}s`);
 }
 
+// Mutex: evita que multiplos ciclos baixem o feed simultaneamente (race condition fix)
+let _feedDownloadPromise = null;
+
 async function obterFeed() {
   try {
     if (fs.existsSync(CACHE_PATH) && fs.existsSync(CACHE_META)) {
@@ -141,12 +144,18 @@ async function obterFeed() {
       const idadeHoras = (Date.now() - meta.baixadoEm) / (1000 * 60 * 60);
       if (idadeHoras < CACHE_TTL_HORAS) {
         const tamanho = fs.statSync(CACHE_PATH).size;
-        console.log(`📂 Usando feed em cache (${idadeHoras.toFixed(1)}h, ${(tamanho/1024/1024).toFixed(1)}MB)`);
+        console.log(`Usando feed em cache (${idadeHoras.toFixed(1)}h, ${(tamanho/1024/1024).toFixed(1)}MB)`);
         return CACHE_PATH;
       }
     }
   } catch {}
-  await baixarFeedStreaming();
+  if (_feedDownloadPromise) {
+    console.log('Feed ja sendo baixado por outro ciclo, aguardando...');
+    await _feedDownloadPromise;
+    return CACHE_PATH;
+  }
+  _feedDownloadPromise = baixarFeedStreaming().finally(() => { _feedDownloadPromise = null; });
+  await _feedDownloadPromise;
   return CACHE_PATH;
 }
 
@@ -466,81 +475,4 @@ const PALAVRAS_BELEZA = [
 function ehBeleza(produto) {
   const cat = (produto.categoria1 || '').toLowerCase();
   const nome = (produto.nome || '').toLowerCase();
-  return PALAVRAS_BELEZA.some(p => cat.includes(p) || nome.includes(p));
-}
-
-async function buscarProdutos(limite = 30) {
-  try {
-    const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-
-    console.log('🔎 Aplicando filtros:');
-    const filtrados = filtrarQualidade(todos);
-    console.log(`✨ ${filtrados.length} produtos no funil final`);
-
-    return filtrados.slice(0, limite);
-  } catch (err) {
-    console.error('❌ Erro ao buscar produtos:', err.message);
-    return [];
-  }
-}
-
-async function buscarProdutosBeleza(limite = 30) {
-  try {
-    const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-    const filtrados = filtrarQualidade(todos.filter(ehBeleza));
-    console.log(`💄 ${filtrados.length} produtos de beleza no funil`);
-    return filtrados.slice(0, limite);
-  } catch (err) {
-    console.error('❌ Erro ao buscar produtos de beleza:', err.message);
-    return [];
-  }
-}
-
-async function buscarProdutosGerais(limite = 30) {
-  try {
-    const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-    const filtrados = filtrarQualidade(todos.filter(p => !ehBeleza(p)));
-    console.log(`🛍️  ${filtrados.length} produtos gerais no funil`);
-    return filtrados.slice(0, limite);
-  } catch (err) {
-    console.error('❌ Erro ao buscar produtos gerais:', err.message);
-    return [];
-  }
-}
-
-async function gerarLinkAfiliado(urlOriginal, linkPronto) {
-  const link = linkPronto || urlOriginal;
-
-  // Se já é shope.ee curto, retorna direto
-  if (link.match(/shope\.ee\/[a-zA-Z0-9]{5,15}$/)) return link;
-
-  // Encurta via TinyURL (WhatsApp consegue gerar preview de links TinyURL)
-  try {
-    const curto = await encurtarTinyURL(link);
-    if (curto) return curto;
-  } catch (err) {
-    console.warn('  ⚠️  Encurtador falhou:', err.message);
-  }
-
-  return link;
-}
-
-/**
- * Encurta uma URL usando TinyURL (API pública, sem autenticação)
- * O WhatsApp consegue gerar preview de links tinyurl.com — diferente de shopee.com.br
- * que é bloqueado pelo anti-bot da Shopee
- */
-async function encurtarTinyURL(url) {
-  const resp = await axios.get('https://tinyurl.com/api-create.php', {
-    params: { url },
-    timeout: 6000,
-  });
-  const curto = (resp.data || '').toString().trim();
-  if (curto.startsWith('http')) return curto;
-  return null;
-}
-
-module.exports = { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, ehBeleza, diversificarSelecao };
+  return PALAVRAS_BELEZA.some(p => cat.inc

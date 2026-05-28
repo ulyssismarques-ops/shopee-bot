@@ -419,9 +419,9 @@ async function postarReel(produto, perfil) {
       params: { video_url: videoUrl, media_type: 'REELS', caption, access_token: token }
     });
 
-    // Video demora mais pra processar — aguarda 45s fixos
+    // Video demora mais pra processar — aguarda 90s fixos (9007 fix)
     console.log(`  Aguardando processamento do Reel [${perfil}]...`);
-    await new Promise(r => setTimeout(r, 45000));
+    await new Promise(r => setTimeout(r, 90000));
 
     const publishResp = await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
       params: { creation_id: container.id, access_token: token }
