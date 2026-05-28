@@ -152,7 +152,10 @@ async function obterFeed() {
 
 function parsearFeedDeArquivo(filePath) {
   console.log('📖 Lendo e parseando CSV...');
-  const csv = fs.readFileSync(filePath, 'utf8');
+  // v3.25 — Strip BOM (UTF-8 byte order mark) que o feed da Shopee envia no início.
+  // Sem isso a primeira coluna vira "﻿shop_rating" e r.shop_rating retorna undefined,
+  // fazendo shopRating ser sempre 0 e quebrando o filtro de loja confiável.
+  const csv = fs.readFileSync(filePath, 'utf8').replace(/^﻿/, '');
 
   let registros;
   try {

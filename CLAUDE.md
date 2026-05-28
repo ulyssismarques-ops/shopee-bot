@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.24 (Bloqueio erótico + Status WA 1x/dia + Health check diário)
+**Versão atual:** v3.25 (Fix BOM no CSV → shop_rating volta a funcionar)
 
 ---
 
@@ -502,7 +502,19 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.24 (27/05/2026 tarde) — **EM PRODUÇÃO** ✅ — Bloqueio erótico + Status WA 1x + Health check
+### v3.25 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Fix BOM no CSV
+Descoberto olhando logs do disparo de 8h em 28/05:
+```
+🔍 TODAS as chaves: ["﻿shop_rating", ...]   ← invisível mas tem BOM antes
+📈 Shop rating ≥ 4.7:  0                    ← ZERO produtos passavam!
+```
+- Feed CSV da Shopee vem com UTF-8 BOM (`﻿`) no início. Resultado: primeira coluna no objeto fica `r['﻿shop_rating']`, e `r.shop_rating` retorna `undefined`.
+- shopRating sempre era 0 → filtro de loja confiável quebrado desde sempre
+- Salvava só pelo fallback v3.21 (`shopRating=0 && avaliacao ≥ 4.7`), mas perdíamos discriminação entre lojas 4.9 e 4.7
+- Fix: `.replace(/^﻿/, '')` ao ler o CSV antes de parsear
+- Próximos disparos vão mostrar `Shop rating ≥ 4.7: X` com X > 0
+
+### v3.24 (27/05/2026 tarde) — Bloqueio erótico + Status WA 1x + Health check
 - **Bloqueio de conteúdo erótico** (feedback: "nao quero que va uma coisa erotica nas publicaçoes"):
   - Categoria `'adult', 'sex toys', 'intimate items', 'erotic', 'adult products'` adicionada à CATEGORIAS_BLOQUEADAS
   - 40+ palavras adicionadas à PALAVRAS_BLOQUEADAS: vibrador, consolo, dildo, sex toy, masturbador, plug anal, lubrificante íntimo, gel lubrificante, fantasia erótica, lingerie sexy, kit sexy, fetiche, etc.
