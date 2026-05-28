@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.26 (Alerta visível + retry 30s no ciclo WhatsApp quando desconectado)
+**Versão atual:** v3.27 (Retry mid-ciclo no WhatsApp + sobrevive a drops durante envio)
 
 ---
 
@@ -502,7 +502,24 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.26 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Alerta WhatsApp desconectado
+### v3.27 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Retry mid-ciclo WhatsApp
+Logs do Railway revelaram a causa exata dos disparos perdidos:
+```
+27/05 17:04  Conexão perdida (código 428) — outra sessão concorrente
+27/05 18:52  Conexão perdida (código 503) — servidor WhatsApp instável
+27/05 20:00:41  Conexão perdida (código 408) ← TIMEOUT 41s APÓS CRON DE 20H!
+28/05 05:44  Conexão perdida (código 428)
+```
+- A v3.26 protege contra drop NO MOMENTO do cron, mas o drop das 20h foi MID-CICLO (41s depois)
+- v3.27 adiciona retry POR MENSAGEM:
+  - Antes de cada envio, verifica se WhatsApp está conectado
+  - Se não, espera até 30s pela reconexão
+  - Se enviar falhar, tenta reconectar e refazer 1x
+  - Se falhar de novo, pula esse produto e continua o resto
+  - Conta enviados vs pulados, marca enviados apenas os que de fato saíram
+- 4 drops em 12h sugere **competição de sessão**: alguém pode estar usando WhatsApp Web/Desktop com mesma conta da Rosana. Sugerir verificar "Aparelhos conectados" no celular.
+
+### v3.26 (28/05/2026 manhã) — Alerta WhatsApp desconectado
 Usuário reportou que último disparo no grupo WA foi 27/05 12h. IG continuou funcionando (8h do 28/05 saiu), então o problema é específico do WhatsApp.
 
 - Nova função `whatsappConectado()` em `whatsapp.js` exporta status `isConnected`

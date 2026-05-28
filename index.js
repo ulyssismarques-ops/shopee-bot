@@ -66,19 +66,64 @@ async function cicloWhatsApp() {
       linkAfiliado: await gerarLinkAfiliado(p.url, p.linkAfiliado),
     })));
 
+    // v3.27 — retry mid-ciclo. Se conexão cair durante os envios (vimos
+    // código 408 às 20:00:41 ontem), espera até 30s pra reconectar antes
+    // de tentar o próximo envio. Assim sobrevive a drops de até 30s no meio.
+    let enviados = 0;
+    let pulados = 0;
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
-      if (produto.imagem) {
-        await enviarImagemComLegenda(GRUPO_ID, produto.imagem, mensagem);
-      } else {
-        await enviarMensagem(GRUPO_ID, mensagem);
+      // Se a conexão caiu desde o envio anterior, espera reconectar
+      if (!whatsappConectado()) {
+        console.warn(`  🔄  WhatsApp caiu mid-ciclo — aguardando reconexão antes de "${produto.nome.slice(0,40)}"...`);
+        const reconectou = await aguardarConexao(30000);
+        if (!reconectou) {
+          console.error(`  ❌  WhatsApp não reconectou em 30s — pulando "${produto.nome.slice(0,40)}"`);
+          pulados++;
+          continue;
+        }
+        console.log(`  ✅  Reconectou! Continuando...`);
       }
-      console.log(`  Enviado: ${produto.nome.slice(0, 50)}...`);
+      try {
+        if (produto.imagem) {
+          await enviarImagemComLegenda(GRUPO_ID, produto.imagem, mensagem);
+        } else {
+          await enviarMensagem(GRUPO_ID, mensagem);
+        }
+        console.log(`  Enviado: ${produto.nome.slice(0, 50)}...`);
+        enviados++;
+      } catch (sendErr) {
+        // Erro no send pode ser drop momentâneo. Tenta reconectar e refazer 1x.
+        console.warn(`  ⚠️  Falha no envio: ${sendErr.message}. Tentando reconectar...`);
+        const reconectou = await aguardarConexao(30000);
+        if (reconectou) {
+          try {
+            if (produto.imagem) {
+              await enviarImagemComLegenda(GRUPO_ID, produto.imagem, mensagem);
+            } else {
+              await enviarMensagem(GRUPO_ID, mensagem);
+            }
+            console.log(`  ✅  Reenviado após reconexão: ${produto.nome.slice(0, 50)}...`);
+            enviados++;
+          } catch (retryErr) {
+            console.error(`  ❌  Pulando após 2 falhas: ${retryErr.message}`);
+            pulados++;
+          }
+        } else {
+          console.error(`  ❌  Sem reconexão — pulando "${produto.nome.slice(0,40)}"`);
+          pulados++;
+        }
+      }
       await sleep(DELAY_ENTRE_MSGS);
     }
+    if (pulados > 0) {
+      console.warn(`  ⚠️  ${pulados} de ${comLinks.length} produtos pulados por instabilidade WhatsApp`);
+    }
 
-    marcarEnviados(comLinks);
-    console.log(`WhatsApp concluido: ${comLinks.length} produtos enviados.\n`);
+    // v3.27 — marca como enviados só os que de fato saíram (não os pulados)
+    const enviadosOk = comLinks.slice(0, enviados);
+    if (enviadosOk.length > 0) marcarEnviados(enviadosOk);
+    console.log(`WhatsApp concluido: ${enviados}/${comLinks.length} produtos enviados.\n`);
 
     // Posta destaque no WhatsApp Status (v3.15, ajustado em v3.24)
     // SÓ posta às 20h pra não saturar os contatos com 2 status/dia (M3 feedback)
