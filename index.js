@@ -74,6 +74,7 @@ async function cicloWhatsApp() {
     // de tentar o próximo envio. Assim sobrevive a drops de até 30s no meio.
     let enviados = 0;
     let pulados = 0;
+    const idsEnviados = [];
     for (const produto of comLinks) {
       const mensagem = formatarMensagem(produto);
       // Se a conexão caiu desde o envio anterior, espera reconectar
@@ -95,6 +96,7 @@ async function cicloWhatsApp() {
         }
         console.log(`  Enviado: ${produto.nome.slice(0, 50)}...`);
         enviados++;
+        idsEnviados.push(produto.id);
       } catch (sendErr) {
         // Erro no send pode ser drop momentâneo. Tenta reconectar e refazer 1x.
         console.warn(`  ⚠️  Falha no envio: ${sendErr.message}. Tentando reconectar...`);
@@ -108,6 +110,7 @@ async function cicloWhatsApp() {
             }
             console.log(`  ✅  Reenviado após reconexão: ${produto.nome.slice(0, 50)}...`);
             enviados++;
+            idsEnviados.push(produto.id);
           } catch (retryErr) {
             console.error(`  ❌  Pulando após 2 falhas: ${retryErr.message}`);
             pulados++;
@@ -123,9 +126,8 @@ async function cicloWhatsApp() {
       console.warn(`  ⚠️  ${pulados} de ${comLinks.length} produtos pulados por instabilidade WhatsApp`);
     }
 
-    // v3.27 — marca como enviados só os que de fato saíram (não os pulados)
-    const enviadosOk = comLinks.slice(0, enviados);
-    if (enviadosOk.length > 0) marcarEnviados(enviadosOk);
+    // v3.31 — usa idsEnviados pra marcar exatamente os que saíram (fix: slice era bugado com skips mid-lista)
+    if (idsEnviados.length > 0) marcarEnviados(comLinks.filter(p => idsEnviados.includes(p.id)));
     console.log(`WhatsApp concluido: ${enviados}/${comLinks.length} produtos enviados.\n`);
 
     // Posta destaque no WhatsApp Status (v3.15, ajustado em v3.24)
@@ -226,7 +228,7 @@ async function healthCheck() {
   const c = contarPostsRecentes(24);
 
   // Expectativas mínimas (Reels conta junto com IG no historico — não temos como separar)
-  const okGeral  = c.geral  >= 4;   // 5 esperados, mas 1 a menos por sobrescrita Reel = 4 ok
+  const okGeral  = c.geral  >= 1;   // v3.29 reduziu pra 1x/dia — espera >= 1 post
   const okBeleza = c.beleza >= 1;
 
   const status = (ok) => ok ? '✅' : '❌ FALHOU';
@@ -234,8 +236,8 @@ async function healthCheck() {
     '═'.repeat(60),
     `🏥 HEALTH CHECK — ${hora}`,
     '═'.repeat(60),
-    `${status(okGeral)}  IG @achadinhosdaroh01 (geral): ${c.geral} posts em 24h (esperado: ≥4)`,
-    `${status(okBeleza)}  IG @byrosanamatias (beleza):   ${c.beleza} posts em 24h (esperado: ≥1)`,
+    `${status(okGeral)}  IG @achadinhosdaroh01 (geral): ${c.geral} posts em 24h (esperado: >=1)`,
+    `${status(okBeleza)}  IG @byrosanamatias (beleza):   ${c.beleza} posts em 24h (esperado: >=1)`,
     `📊  WhatsApp histórico: ${c.waEnviados} IDs no ring buffer (sem timestamp)`,
     '═'.repeat(60),
   ];

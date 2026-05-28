@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.29 (Frequência reduzida pra 1x/dia em todos os canais — pico das 20h)
+**Versão atual:** v3.31 (fixes: mutex feed, reel 90s+10h30, health check threshold, idsEnviados)
 
 ---
 
@@ -502,7 +502,16 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.29 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Frequência reduzida pra 1x/dia
+### v3.30 (28/05/2026) — Fix race condition feed + reel geral 9007
+- **Mutex no download do feed** (`shopee.js`): quando 3 ciclos disparam às 20h simultaneamente e o cache expirou, apenas o primeiro baixa; os outros aguardam o mesmo Promise. Elimina `ENOENT: rename .tmp` que derrubava 2 dos 3 ciclos.
+- **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
+- **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
+
+### v3.31 (28/05/2026) — **EM PRODUÇÃO** ✅ — Fix health check + idsEnviados
+- **Health check threshold corrigido** (`index.js`): `okGeral >= 4` era legado de quando postava 5x/dia. Agora `>= 1` (v3.29 reduziu pra 1x/dia) — health check parava de logar `🔴 ALGO FALHOU` toda noite sem motivo.
+- **`idsEnviados` substitui `slice(0, enviados)`** (`index.js`): quando produtos eram pulados mid-ciclo (reconexão WA), o slice marcava os primeiros N IDs incluindo pulados. Agora rastreia exatamente quais IDs foram enviados com sucesso.
+
+### v3.29 (28/05/2026 manhã) — Frequência reduzida pra 1x/dia
 Feedback do usuário olhando o feed do `@achadinhosdaroh01`: posts antigos sumiam do feed rápido (5x/dia enche tudo) e WhatsApp 2x/dia parecia spam. Confirmado também via screenshot que post das 11h saiu corretamente:
 > "🍂 Mudança de estação — bora se preparar: Top 3 achados do dia — Garrafa Térmica, Lingerie Térmica, Kit Cobre Leito" + carrossel com 3 fotos
 
