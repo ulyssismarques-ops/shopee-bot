@@ -153,19 +153,22 @@ async function postarNoInstagram(produto, perfil = 'geral') {
     // então polling de status não funciona — mas 5s é suficiente pra imagens JPEG da Shopee.
     await new Promise(r => setTimeout(r, 5000));
 
-    await axios.post(
+    const publishResp = await axios.post(
       `${BASE_URL}/${userId}/media_publish`,
       null,
       { params: { creation_id: container.id, access_token: token } }
     );
 
     console.log(`  📸 Instagram [${perfil}]: publicado "${produto.nome.slice(0, 50)}..."`);
+    console.log(`     Media ID: ${publishResp.data?.id}`);
+    console.log(`     Response: ${JSON.stringify(publishResp.data)}`);
 
     // Guarda metadados pra alimentar a landing page
     salvarProdutoPostado(produto, perfil);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
-    console.error(`  ❌ Instagram [${perfil}] erro: ${msg}`);
+    const code = err.response?.data?.error?.code;
+    console.error(`  ❌ Instagram [${perfil}] erro: ${msg}${code ? ' (code ' + code + ')' : ''}`);
   }
 }
 
@@ -274,13 +277,14 @@ async function postarStory(produto, perfil) {
 
     await new Promise(r => setTimeout(r, 8000));  // 8s pra processar imagem 9:16
 
-    await axios.post(
+    const publishResp = await axios.post(
       `${BASE_URL}/${userId}/media_publish`,
       null,
       { params: { creation_id: container.id, access_token: token } }
     );
 
     console.log(`  📖 Story Instagram [${perfil}]: publicado.`);
+    console.log(`     Media ID: ${publishResp.data?.id}`);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
     const code = err.response?.data?.error?.code;
@@ -365,12 +369,15 @@ async function postarCarrossel(produtos, perfil) {
 
     await new Promise(r => setTimeout(r, 5000));
 
-    // Passo 4: publica
-    await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
+    // Passo 4: publica e captura o media_id pra debug
+    const publishResp = await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
       params: { creation_id: carousel.id, access_token: token }
     });
+    const publishedMediaId = publishResp.data?.id;
 
     console.log(`  🎠 Carrossel Instagram [${perfil}]: ${top.length} produtos publicados.`);
+    console.log(`     Media ID: ${publishedMediaId}`);
+    console.log(`     Response: ${JSON.stringify(publishResp.data)}`);
     top.forEach(p => salvarProdutoPostado(p, perfil));
     return top[0];
   } catch (err) {
@@ -416,11 +423,13 @@ async function postarReel(produto, perfil) {
     console.log(`  Aguardando processamento do Reel [${perfil}]...`);
     await new Promise(r => setTimeout(r, 45000));
 
-    await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
+    const publishResp = await axios.post(`${BASE_URL}/${userId}/media_publish`, null, {
       params: { creation_id: container.id, access_token: token }
     });
 
     console.log(`  🎬 Reel Instagram [${perfil}]: publicado com sucesso.`);
+    console.log(`     Media ID: ${publishResp.data?.id}`);
+    console.log(`     Response: ${JSON.stringify(publishResp.data)}`);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
     const code = err.response?.data?.error?.code;

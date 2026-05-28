@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.27 (Retry mid-ciclo no WhatsApp + sobrevive a drops durante envio)
+**Versão atual:** v3.28 (Logging Meta API completo + detecta publish silenciosamente rejeitado)
 
 ---
 
@@ -502,7 +502,22 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
   - `^top \d+ do dia`, `^top \d+ mais`, `^\d+°? lugar`, `^melhor[es]? \d+`
   - Vendedores Shopee fazem isso pra gamificar a busca — virou critério de bloqueio
 
-### v3.27 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Retry mid-ciclo WhatsApp
+### v3.28 (28/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Logging Meta API completo
+Usuário reportou que `@achadinhosdaroh01` tem 8 publicações totais mas a landing `/geral` mostra produtos muito mais recentes (Kit Cobre Leito, Z&D Lingerie Térmica...). Discrepância: bot salva no historico mas posts não aparecem no feed.
+
+Hipótese: Meta API retorna `success` (sem throw) mas o post **não é publicado de fato**. Causas possíveis:
+- Rate limit (account postou demais, Meta engole silenciosamente)
+- Content quality flagging (algoritmo Meta marca como spam)
+- Token com permissão degradada (válido mas restrito)
+
+Pra detectar, agora logamos:
+- `Media ID:` retornado pela Meta no `media_publish` (deve aparecer)
+- `Response:` JSON completo da resposta (ver se tem `error`, `is_shared_to_feed: false`, etc)
+- Aplicado em `postarNoInstagram`, `postarCarrossel`, `postarReel`, `postarStory`
+
+Próximos disparos vão mostrar nos logs o ID retornado. Se Media ID aparecer mas o post não estiver no feed, é confirmação de soft-ban / rate limit.
+
+### v3.27 (28/05/2026 manhã) — Retry mid-ciclo WhatsApp
 Logs do Railway revelaram a causa exata dos disparos perdidos:
 ```
 27/05 17:04  Conexão perdida (código 428) — outra sessão concorrente
