@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.32 (fixes: DESCONTO_BOM, boost Copa, gerarChamada ordem, boot version)
+**Versão atual:** v3.33 (fixes: instagram selecionarTopN, gerarHashtags word-boundary, postarReel salvar, story condicional, whatsapp reconnect catch, historico crossBorder)
 
 ---
 
@@ -506,6 +506,14 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Mutex no download do feed** (`shopee.js`): quando 3 ciclos disparam às 20h simultaneamente e o cache expirou, apenas o primeiro baixa; os outros aguardam o mesmo Promise. Elimina `ENOENT: rename .tmp` que derrubava 2 dos 3 ciclos.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
+
+### v3.33 (29/05/2026) — **EM PRODUÇÃO** ✅ — 6 bug fixes instagram + whatsapp + historico
+- **Fix `selecionarTopN` ordem errada** (`instagram.js`): `.slice(0,n).filter(p.imagem)` podia retornar <2 itens e silenciosamente pular o carrossel. Corrigido para `.filter(p.imagem).slice(0,n)`.
+- **Fix `gerarHashtags` substring match** (`instagram.js`): `texto.includes(p)` fazia `'pet'` bater em `'tapete'`, `'carpete'`, etc. Substituído por `palavraNoTexto()` com word-boundary manual (mesmo padrão do `tendencias.js`).
+- **Fix `postarReel` sem `salvarProdutoPostado`** (`instagram.js`): Reels publicados nunca apareciam na landing page. Adicionado `salvarProdutoPostado(produto, perfil)` após publicação bem-sucedida.
+- **Fix Story dispara mesmo com carrossel falho** (`index.js`): `postarCarrossel` retorna `null` em falha, mas `postarStory` sempre disparava. Agora Story só posta se `postOk === true`.
+- **Fix `iniciarSocket` reconnect sem catch** (`whatsapp.js`): `setTimeout(() => iniciarSocket(), 8000)` — Promise sem `.catch()` virava unhandled rejection no Node 20, podendo crashar o processo silenciosamente. Adicionado `.catch(err => console.error(...))`.
+- **Fix `crossBorder` salvo incorretamente** (`historico.js`): `produto.crossBorder === true` convertia `undefined` (sem info) para `false`, fazendo produtos sem campo `cb_option` ganharem badge "🇧🇷 Envio Rápido" incorretamente. Agora salva o valor original sem coerção.
 
 ### v3.32 (28/05/2026) — **EM PRODUÇÃO** ✅ — 5 bug fixes de scoring e filtro
 - **`DESCONTO_BOM` aplicado no filtro** (`shopee.js`): constante definida mas nunca usada — produtos com 0% desconto passavam. Agora exige `desconto >= 20%`.

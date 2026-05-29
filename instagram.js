@@ -113,8 +113,13 @@ function gerarHashtags(produto, perfil) {
     auto:    ['carro', 'veículo', 'automotivo', 'automóvel'],
   };
 
+  // Word-boundary manual (\b nao funciona com chars acentuados no JS)
+  function palavraNoTexto(palavra, txt) {
+    const esc = palavra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(^|[^a-z\u00e0-\u00fa0-9])' + esc + '([^a-z\u00e0-\u00fa0-9]|$)').test(txt);
+  }
   for (const [c, palavras] of Object.entries(categoriaMap)) {
-    if (palavras.some(p => texto.includes(p))) {
+    if (palavras.some(p => palavraNoTexto(p, texto))) {
       const extras = HASHTAGS_EXTRAS[c][idx];
       return base + '\n' + extras;
     }
@@ -302,8 +307,8 @@ function selecionarTopN(produtos, n = 3) {
       const dB = b.precoOriginal ? (b.precoOriginal - b.precoAtual) / b.precoOriginal : 0;
       return dB - dA;
     })
-    .slice(0, n)
-    .filter(p => p.imagem);
+    .filter(p => p.imagem)
+    .slice(0, n);
 }
 
 /**
@@ -430,6 +435,7 @@ async function postarReel(produto, perfil) {
     console.log(`  🎬 Reel Instagram [${perfil}]: publicado com sucesso.`);
     console.log(`     Media ID: ${publishResp.data?.id}`);
     console.log(`     Response: ${JSON.stringify(publishResp.data)}`);
+    salvarProdutoPostado(produto, perfil);
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message;
     const code = err.response?.data?.error?.code;

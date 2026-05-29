@@ -91,7 +91,7 @@ async function iniciarSocket() {
       }
 
       console.log(`🔄  Conexão perdida (código ${code}) — reconectando em 8s...`);
-      setTimeout(() => iniciarSocket(), 8000);
+      setTimeout(() => iniciarSocket().catch(err => console.error('\u274c Erro ao reiniciar socket:', err.message)), 8000);
     }
   });
 }

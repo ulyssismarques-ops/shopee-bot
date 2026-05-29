@@ -179,14 +179,21 @@ async function cicloInstagram(perfil) {
     // Posta carrossel com os 3 melhores (se houver 2+), senao post simples
     // v3.20: passa top3 já preparado (com links resolvidos) — não re-selecionar
     const destaque = top3[0];
+    let postOk = false;
     if (top3.length >= 2) {
-      await postarCarrossel(top3, perfil);
+      const result = await postarCarrossel(top3, perfil);
+      postOk = result !== null;
     } else {
       await postarNoInstagram(destaque, perfil);
+      postOk = true;
     }
 
-    // Story com o produto destaque (v3.16)
-    await postarStory(destaque, perfil);
+    // Story só posta se o feed/carrossel foi bem-sucedido — v3.33
+    if (postOk) {
+      await postarStory(destaque, perfil);
+    } else {
+      console.log(`  Story [${perfil}] pulado — carrossel falhou.`);
+    }
 
     console.log(`Instagram [${perfil}] concluido.\n`);
   } catch (err) {
@@ -254,7 +261,7 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.32 iniciando...');
+  console.log('Shopee Bot v3.33 iniciando...');
   iniciarServidor();
   await conectarWhatsApp();
 

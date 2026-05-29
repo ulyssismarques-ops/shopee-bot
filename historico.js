@@ -70,7 +70,7 @@ function salvarProdutoPostado(produto, categoria) {
     desconto:      produto.desconto,
     imagem:        produto.imagem,
     linkAfiliado:  produto.linkAfiliado || produto.url,
-    crossBorder:   produto.crossBorder === true,  // v3.7 — pra mostrar badge "Envio rápido" na landing
+    crossBorder:   produto.crossBorder,            // v3.7 — false=nacional(badge), true=internacional, undefined=sem info
     postadoEm:     new Date().toISOString(),
   };
 
