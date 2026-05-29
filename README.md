@@ -1,24 +1,27 @@
 # Shopee Bot — Achadinhos da Roh
 
-Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão atual: **v3.14**.
+Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão atual: **v3.33**.
 
 ## O que faz
 
 - Baixa feed CSV oficial de afiliados Shopee (100k+ produtos/dia, streaming, cache 6h)
 - Filtra produtos: nota ≥ 4.5, preço R$ 10-150, desconto ≥ 20%, sem componentes PC/utilitários/nicho
-- Curadoria por score (qualidade + tendências + datas comemorativas + estação do ano)
+- Curadoria por score 0-200 (qualidade + tendências + datas comemorativas + estação + comissão)
 - Diversifica os 5 produtos do WhatsApp por setor; em campanha (Copa, Namorados ≤ 14 dias) 3 slots vão pra produtos da campanha
 - Envia **foto + legenda** no grupo WhatsApp via Baileys
-- Posta destaque em 2 perfis Instagram via Meta Graph API
+- Posta carrossel top 3 + Story em 2 perfis Instagram via Meta Graph API
+- Gera Reel MP4 9:16 com zoom Ken Burns via ffmpeg (1x/dia às 10h)
 - Serve landing page pública com grid dos últimos 25 produtos por categoria
 
-## Horários
+## Horários (v3.29 — 1x/dia no pico)
 
-| Canal | Horários |
+| Canal | Horário |
 |---|---|
-| WhatsApp | 12h · 20h (5 produtos cada) |
-| Instagram @byrosanamatias (beleza) | 20h (1 destaque) |
-| Instagram @achadinhosdaroh01 (geral) | 8h · 11h · 14h · 17h · 20h (1 destaque cada) |
+| WhatsApp | 20h (5 produtos) |
+| Instagram @byrosanamatias (beleza) | 20h (carrossel + story) |
+| Instagram @achadinhosdaroh01 (geral) | 20h (carrossel + story) |
+| Reels (ambos os perfis) | 10h beleza · 10h30 geral |
+| Health check | 23h (log diário) |
 
 ## URLs em produção
 
@@ -31,14 +34,16 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão a
 
 | Arquivo | Função |
 |---|---|
-| `index.js` | Scheduler cron + orquestração (WhatsApp + Instagram) |
-| `whatsapp.js` | Baileys: conexão, QR, envio texto/imagem |
+| `index.js` | Scheduler cron + orquestração (WhatsApp + Instagram + Reels + Health check) |
+| `whatsapp.js` | Baileys: conexão, QR, envio texto/imagem, status@broadcast |
 | `shopee.js` | Feed CSV, filtros, score, diversificação por setor |
-| `tendencias.js` | Calendário comercial BR, scoring, chamadas contextuais |
-| `instagram.js` | Meta Graph API: publica em 2 perfis |
-| `landingpage.js` | Express: `/beleza`, `/geral`, `/health` |
-| `mensagem.js` | Formato da mensagem WhatsApp |
-| `historico.js` | Ring buffer anti-repetição + metadados landing page |
+| `tendencias.js` | Calendário comercial BR, scoring 0-200, chamadas contextuais |
+| `instagram.js` | Meta Graph API: feed, carrossel, story, reel nos 2 perfis |
+| `reels.js` | ffmpeg: gera MP4 9:16 (Reel) e JPEG 9:16 (Story) |
+| `landingpage.js` | Express: `/beleza`, `/geral`, `/health`, `/reel/:file`, `/story/:file` |
+| `mensagem.js` | Formato da mensagem WhatsApp com PS rotativo |
+| `historico.js` | Ring buffer 300 IDs anti-repetição + metadados landing page |
+| `test.js` | Testa scoring/filtros localmente sem disparar produção |
 
 ## Deploy
 
@@ -59,6 +64,7 @@ No Railway → Variables → adicione `TESTAR_AGORA=true` → Redeploy.
 
 - **Feed URL expirou** (`401/403` nos logs): `affiliate.shopee.com.br` → Criativo → Feed de produto → Ver Link → atualiza `SHOPEE_FEED_URL` no Railway
 - **Instagram parou** (`Invalid OAuth access token`): reemitir Page Tokens via Graph API Explorer (ver CLAUDE.md)
-- **WhatsApp deslogou**: `rm -rf /data/baileys_auth` no terminal Railway → restart → reescanear QR
+- **WhatsApp deslogou** (`Sessão encerrada (logout)`): `rm -rf /data/baileys_auth` no terminal Railway → restart → reescanear QR
+- **Verificação preventiva tokens Meta**: a cada 60 dias — próxima em 24/07/2026
 
 Documentação completa: [CLAUDE.md](./CLAUDE.md)
