@@ -274,6 +274,7 @@ function filtrarQualidade(produtos) {
   // Conta quantos passam em CADA filtro individualmente (debug)
   const c = {
     nota:      produtos.filter(p => p.avaliacao >= MIN_AVALIACAO).length,
+    desconto:  produtos.filter(p => p.desconto >= DESCONTO_BOM).length,
     loja:      produtos.filter(p => p.shopRating >= MIN_SHOP_RATING).length,
     preco:     produtos.filter(p => p.precoAtual >= MIN_PRECO && p.precoAtual <= MAX_PRECO).length,
     nome:      produtos.filter(p => p.nome && p.nome.length >= 10).length,
@@ -295,6 +296,7 @@ function filtrarQualidade(produtos) {
      (p.shopRating === 0 && p.avaliacao >= MIN_AVAL_SEM_SHOP)) &&
     p.precoAtual  >= MIN_PRECO &&
     p.precoAtual  <= MAX_PRECO &&
+    p.desconto    >= DESCONTO_BOM &&
     p.nome && p.nome.length >= 10 &&
     !temPalavraBloqueada(p.nome) &&
     !temCategoriaBloqueada(p)

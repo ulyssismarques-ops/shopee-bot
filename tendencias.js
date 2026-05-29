@@ -266,12 +266,18 @@ function pontuarProduto(produto, hoje = new Date()) {
       if (piorPenalidadeFora < 40) piorPenalidadeFora = 40;
     }
   }
-  score += melhorBoostEvento - piorPenalidadeFora;
+  // Bug fix v3.32: penalidade só aplica se não há boost de evento próximo.
+  // Antes: produto de Copa (+50) cancelava com Carnaval 2027 (-40) = +10 em vez de +50.
+  if (melhorBoostEvento > 0) {
+    score += melhorBoostEvento;  // tem evento próximo — ignora penalidade de outro evento longe
+  } else {
+    score -= piorPenalidadeFora; // só penaliza quando realmente fora de estação (sem boost)
+  }
 
   // Boost tendência geral — palavra inteira (não substring).
-  // v3.22: NÃO aplica se produto já foi penalizado por evento longe — evita
-  // que "forma silicone" salve um produto de Páscoa fora de estação.
-  if (piorPenalidadeFora === 0 && TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
+  // NÃO aplica se produto já foi penalizado por evento longe.
+  if (melhorBoostEvento === 0 && piorPenalidadeFora === 0 &&
+      TENDENCIAS_GERAIS.some(t => palavraEstaNoNome(t, nome))) {
     score += 30;
   }
 
@@ -440,10 +446,12 @@ const CHAMADAS_DEFAULT = {
 function gerarChamada(produto, canal = 'whatsapp', hoje = new Date()) {
   const nome = (produto.nome || '').toLowerCase();
 
-  // 1. Evento ≤ 21 dias (campanha ativa) — palavra inteira
-  for (const ev of CALENDARIO_BR) {
-    const d = diasAteEvento(ev, hoje);
-    if (d > 21) continue;
+  // 1. Evento ≤ 21 dias (campanha ativa) — ordena por proximidade pra pegar o mais urgente
+  const eventosAtivos = CALENDARIO_BR
+    .map(ev => ({ ...ev, diasAte: diasAteEvento(ev, hoje) }))
+    .filter(ev => ev.diasAte <= 21)
+    .sort((a, b) => a.diasAte - b.diasAte);
+  for (const ev of eventosAtivos) {
     if (!ev.palavras.some(p => palavraEstaNoNome(p, nome))) continue;
     const chamada = CHAMADAS_EVENTO[ev.nome]?.[canal];
     if (chamada) return chamada;

@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.31 (fixes: mutex feed, reel 90s+10h30, health check threshold, idsEnviados)
+**Versão atual:** v3.32 (fixes: DESCONTO_BOM, boost Copa, gerarChamada ordem, boot version)
 
 ---
 
@@ -506,6 +506,13 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Mutex no download do feed** (`shopee.js`): quando 3 ciclos disparam às 20h simultaneamente e o cache expirou, apenas o primeiro baixa; os outros aguardam o mesmo Promise. Elimina `ENOENT: rename .tmp` que derrubava 2 dos 3 ciclos.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
+
+### v3.32 (28/05/2026) — **EM PRODUÇÃO** ✅ — 5 bug fixes de scoring e filtro
+- **`DESCONTO_BOM` aplicado no filtro** (`shopee.js`): constante definida mas nunca usada — produtos com 0% desconto passavam. Agora exige `desconto >= 20%`.
+- **Fix boost vs penalidade Copa** (`tendencias.js`): produto Copa (+50) era cancelado por Carnaval 2027 (-40) = +10 em vez de +50. Penalidade agora só aplica quando nao ha boost.
+- **Trending boost nao aplica quando penalizado** (`tendencias.js`): condicao expandida para `melhorBoostEvento === 0 && piorPenalidadeFora === 0`.
+- **`gerarChamada` ordena por proximidade** (`tendencias.js`): iterava CALENDARIO_BR na ordem da lista — agora ordena por `diasAte` antes de iterar.
+- **Versao no boot corrigida** (`index.js`): dizia 'v3.24' desde varias versoes atras.
 
 ### v3.31 (28/05/2026) — **EM PRODUÇÃO** ✅ — Fix health check + idsEnviados
 - **Health check threshold corrigido** (`index.js`): `okGeral >= 4` era legado de quando postava 5x/dia. Agora `>= 1` (v3.29 reduziu pra 1x/dia) — health check parava de logar `🔴 ALGO FALHOU` toda noite sem motivo.

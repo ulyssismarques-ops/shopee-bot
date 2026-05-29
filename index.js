@@ -254,7 +254,7 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.24 iniciando (bloqueio erótico + Status WA 1x + health check)...');
+  console.log('Shopee Bot v3.32 iniciando...');
   iniciarServidor();
   await conectarWhatsApp();
 
