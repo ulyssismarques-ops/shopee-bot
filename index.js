@@ -261,8 +261,9 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.33 iniciando...');
-  iniciarServidor();
+  console.log('Shopee Bot v3.34 iniciando (com /admin/disparo pra testes manuais)...');
+  // v3.34 — passa ciclos pra rota /admin/disparo poder dispará-los manualmente
+  iniciarServidor({ cicloWhatsApp, cicloInstagram, cicloReels });
   await conectarWhatsApp();
 
   HORARIOS_WHATSAPP.forEach((cron) => new CronJob(cron, cicloWhatsApp, null, true, TZ));

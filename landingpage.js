@@ -436,7 +436,13 @@ function renderIndex() {
 </html>`;
 }
 
-function iniciarServidor() {
+/**
+ * Inicia o servidor HTTP.
+ * @param {Object} ciclos - { cicloWhatsApp, cicloInstagram, cicloReels }
+ *                          Opcional. Se passado, expõe /admin/disparo pra
+ *                          testes manuais sem precisar mexer em env vars.
+ */
+function iniciarServidor(ciclos = {}) {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
@@ -483,6 +489,59 @@ function iniciarServidor() {
     res.sendFile(filepath);
   });
 
+  // ─── Trigger manual de disparo (v3.34) ───────────────────────────────────
+  // Visite com query: /admin/disparo?key=XYZ&canal=tudo|wa|geral|beleza|reel-geral|reel-beleza
+  // ADMIN_KEY deve ser configurado no Railway (qualquer string secreta).
+  // Permite testar sem o ciclo de set/redeploy/delete da var TESTAR_AGORA.
+  app.get('/admin/disparo', async (req, res) => {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) {
+      return res.status(503).send('ADMIN_KEY não configurada no Railway. Configure pra usar este endpoint.');
+    }
+    if (req.query.key !== adminKey) {
+      return res.status(403).send('Token inválido. Confira o parâmetro ?key=...');
+    }
+    const canal = String(req.query.canal || 'tudo').toLowerCase();
+    if (!ciclos.cicloWhatsApp || !ciclos.cicloInstagram || !ciclos.cicloReels) {
+      return res.status(500).send('Ciclos não configurados no servidor (bug no startup).');
+    }
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.write(`🚀 Disparo manual acionado — canal: ${canal}\n`);
+    res.write(`Acompanhe os logs do Railway pra ver o resultado.\n\n`);
+    res.write(`Em ~10s a 3min você verá nos logs:\n`);
+    res.write(`  - "Iniciando disparo WhatsApp..." (se canal: tudo ou wa)\n`);
+    res.write(`  - "Iniciando disparo Instagram [geral/beleza]..."\n`);
+    res.write(`  - "Iniciando Reel Instagram [geral/beleza]..."\n`);
+    res.write(`  - "...publicado" / "...publicados" no final de cada\n\n`);
+    res.write(`Você pode fechar essa página, os disparos vão rolar em background.\n`);
+    res.end();
+
+    // Roda em background (não bloqueia a resposta)
+    setImmediate(async () => {
+      try {
+        console.log(`\n🧪 DISPARO MANUAL via /admin/disparo — canal: ${canal}`);
+        if (canal === 'tudo' || canal === 'wa' || canal === 'whatsapp') {
+          await ciclos.cicloWhatsApp();
+        }
+        if (canal === 'tudo' || canal === 'geral' || canal === 'instagram') {
+          await ciclos.cicloInstagram('geral');
+        }
+        if (canal === 'tudo' || canal === 'beleza' || canal === 'instagram') {
+          await ciclos.cicloInstagram('beleza');
+        }
+        if (canal === 'tudo' || canal === 'reel-geral' || canal === 'reels') {
+          await ciclos.cicloReels('geral');
+        }
+        if (canal === 'tudo' || canal === 'reel-beleza' || canal === 'reels') {
+          await ciclos.cicloReels('beleza');
+        }
+        console.log(`✅ Disparo manual concluído — canal: ${canal}\n`);
+      } catch (err) {
+        console.error(`❌ Erro no disparo manual: ${err.message}`);
+      }
+    });
+  });
+
   app.use((req, res) => res.redirect('/'));
 
   const server = app.listen(PORT, () => {
@@ -492,6 +551,9 @@ function iniciarServidor() {
     console.log(`   • /geral    → bio do @achadinhosdaroh01`);
     console.log(`   • /reel/:f  → serve MP4 do Reel (Meta API busca)`);
     console.log(`   • /story/:f → serve JPG 9:16 do Story (Meta API busca)`);
+    if (process.env.ADMIN_KEY) {
+      console.log(`   • /admin/disparo?key=...&canal=tudo|wa|geral|beleza|reels → disparo manual`);
+    }
   });
 
   server.on('error', (err) => {
