@@ -489,10 +489,27 @@ function iniciarServidor(ciclos = {}) {
     res.sendFile(filepath);
   });
 
-  // ─── Trigger manual de disparo (v3.34) ───────────────────────────────────
+  // ─── Trigger manual de disparo (v3.34, cooldown v3.35) ──────────────────
   // Visite com query: /admin/disparo?key=XYZ&canal=tudo|wa|geral|beleza|reel-geral|reel-beleza
   // ADMIN_KEY deve ser configurado no Railway (qualquer string secreta).
-  // Permite testar sem o ciclo de set/redeploy/delete da var TESTAR_AGORA.
+  //
+  // PROTEÇÃO ANTI-DUPLICAÇÃO (v3.35):
+  // - Cooldown de 30 min por canal — se clicar 2x seguidas, segundo é rejeitado
+  // - Lock em memória pra evitar concorrência (clicou ANTES do primeiro terminar)
+  const ultimoDisparo = {};  // { canal: timestamp }
+  const disparoEmAndamento = {};  // { canal: true/false }
+  const COOLDOWN_MS = 30 * 60 * 1000;  // 30 minutos
+
+  function canaisAFazer(canal) {
+    const lista = [];
+    if (canal === 'tudo' || canal === 'wa' || canal === 'whatsapp')   lista.push('wa');
+    if (canal === 'tudo' || canal === 'geral' || canal === 'instagram') lista.push('geral');
+    if (canal === 'tudo' || canal === 'beleza' || canal === 'instagram') lista.push('beleza');
+    if (canal === 'tudo' || canal === 'reel-geral' || canal === 'reels') lista.push('reel-geral');
+    if (canal === 'tudo' || canal === 'reel-beleza' || canal === 'reels') lista.push('reel-beleza');
+    return lista;
+  }
+
   app.get('/admin/disparo', async (req, res) => {
     const adminKey = process.env.ADMIN_KEY;
     if (!adminKey) {
@@ -505,39 +522,61 @@ function iniciarServidor(ciclos = {}) {
     if (!ciclos.cicloWhatsApp || !ciclos.cicloInstagram || !ciclos.cicloReels) {
       return res.status(500).send('Ciclos não configurados no servidor (bug no startup).');
     }
+
+    // v3.35 — verifica cooldown e lock pra cada canal afetado
+    const canais = canaisAFazer(canal);
+    if (canais.length === 0) {
+      return res.status(400).send(`Canal "${canal}" inválido. Use: tudo, wa, geral, beleza, reel-geral, reel-beleza, reels, instagram`);
+    }
+
+    const agora = Date.now();
+    const bloqueados = [];
+    for (const c of canais) {
+      if (disparoEmAndamento[c]) {
+        bloqueados.push(`${c} (disparo em andamento)`);
+      } else if (ultimoDisparo[c] && agora - ultimoDisparo[c] < COOLDOWN_MS) {
+        const minRestantes = Math.ceil((COOLDOWN_MS - (agora - ultimoDisparo[c])) / 60000);
+        bloqueados.push(`${c} (aguarde ${minRestantes} min — cooldown)`);
+      }
+    }
+    if (bloqueados.length > 0) {
+      res.set('Content-Type', 'text/plain; charset=utf-8');
+      return res.status(429).send(
+        `⚠️  REJEITADO pra evitar duplicação:\n\n` +
+        bloqueados.map(b => `  - ${b}`).join('\n') +
+        `\n\nCooldown de 30 min por canal pra não postar coisa repetida.\n` +
+        `Espere o tempo indicado e tente de novo.\n`
+      );
+    }
+
+    // Marca como em andamento
+    canais.forEach(c => { disparoEmAndamento[c] = true; });
+
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.write(`🚀 Disparo manual acionado — canal: ${canal}\n`);
+    res.write(`Canais que vão disparar: ${canais.join(', ')}\n\n`);
     res.write(`Acompanhe os logs do Railway pra ver o resultado.\n\n`);
-    res.write(`Em ~10s a 3min você verá nos logs:\n`);
-    res.write(`  - "Iniciando disparo WhatsApp..." (se canal: tudo ou wa)\n`);
-    res.write(`  - "Iniciando disparo Instagram [geral/beleza]..."\n`);
-    res.write(`  - "Iniciando Reel Instagram [geral/beleza]..."\n`);
-    res.write(`  - "...publicado" / "...publicados" no final de cada\n\n`);
-    res.write(`Você pode fechar essa página, os disparos vão rolar em background.\n`);
+    res.write(`Cooldown de 30 min ativo — não adianta clicar de novo nos próximos 30 min.\n`);
     res.end();
 
-    // Roda em background (não bloqueia a resposta)
     setImmediate(async () => {
       try {
-        console.log(`\n🧪 DISPARO MANUAL via /admin/disparo — canal: ${canal}`);
-        if (canal === 'tudo' || canal === 'wa' || canal === 'whatsapp') {
-          await ciclos.cicloWhatsApp();
-        }
-        if (canal === 'tudo' || canal === 'geral' || canal === 'instagram') {
-          await ciclos.cicloInstagram('geral');
-        }
-        if (canal === 'tudo' || canal === 'beleza' || canal === 'instagram') {
-          await ciclos.cicloInstagram('beleza');
-        }
-        if (canal === 'tudo' || canal === 'reel-geral' || canal === 'reels') {
-          await ciclos.cicloReels('geral');
-        }
-        if (canal === 'tudo' || canal === 'reel-beleza' || canal === 'reels') {
-          await ciclos.cicloReels('beleza');
-        }
+        console.log(`\n🧪 DISPARO MANUAL via /admin/disparo — canal: ${canal} (${canais.join(', ')})`);
+        if (canais.includes('wa')) await ciclos.cicloWhatsApp();
+        if (canais.includes('geral')) await ciclos.cicloInstagram('geral');
+        if (canais.includes('beleza')) await ciclos.cicloInstagram('beleza');
+        if (canais.includes('reel-geral')) await ciclos.cicloReels('geral');
+        if (canais.includes('reel-beleza')) await ciclos.cicloReels('beleza');
         console.log(`✅ Disparo manual concluído — canal: ${canal}\n`);
       } catch (err) {
         console.error(`❌ Erro no disparo manual: ${err.message}`);
+      } finally {
+        // Marca cooldown e libera o lock pra que próximo clique (após 30 min) funcione
+        const fim = Date.now();
+        canais.forEach(c => {
+          ultimoDisparo[c] = fim;
+          disparoEmAndamento[c] = false;
+        });
       }
     });
   });

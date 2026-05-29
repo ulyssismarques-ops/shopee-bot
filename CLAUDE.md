@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.34 (endpoint /admin/disparo pra teste manual sem mexer em env vars)
+**Versão atual:** v3.35 (cooldown de 30 min no /admin/disparo pra evitar duplicação)
 
 ---
 
@@ -507,7 +507,16 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
 
-### v3.34 (29/05/2026) — **EM PRODUÇÃO** ✅ — Endpoint /admin/disparo pra teste manual
+### v3.35 (29/05/2026) — **EM PRODUÇÃO** ✅ — Cooldown anti-duplicação
+Usuário clicou em /admin/disparo várias vezes e o bot postou produtos repetidos no Instagram (4 posts iguais do mesmo produto). Faltava proteção.
+
+Fix:
+- **Cooldown de 30 min por canal** — se já disparou nos últimos 30 min, rejeita com HTTP 429
+- **Lock de "em andamento"** — se clicar enquanto o anterior ainda tá rolando, rejeita
+- Rejeição mostra exatamente quanto tempo falta pra cada canal
+- Cada canal tem cooldown independente (pode disparar WA agora e IG geral 10 min depois)
+
+### v3.34 (29/05/2026) — Endpoint /admin/disparo pra teste manual
 Problema: `TESTAR_AGORA` exige set/wait/delete dança no Railway, e se apaga rápido demais o segundo deploy mata o primeiro antes do `setTimeout` de 10s disparar. Frustrante.
 
 Solução: rota HTTP secreta `/admin/disparo?key=XYZ&canal=tudo|wa|geral|beleza|reels`. Trigger via browser ou curl, sem mexer em env vars.
