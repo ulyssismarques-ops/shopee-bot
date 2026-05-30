@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.36 (remover "amor" genérico de Namorados — pegava livros religiosos)
+**Versão atual:** v3.37 (auditoria preventiva — limpou ~25 palavras genéricas no calendário)
 
 ---
 
@@ -507,7 +507,36 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
 
-### v3.36 (29/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Remover "amor" genérico de Namorados
+### v3.37 (29/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Auditoria preventiva do calendário
+Depois do bug `'amor'` → "Deus é amor", auditei todas as palavras de eventos e estações pra eliminar genéricos que vão bugar no futuro.
+
+**Palavras removidas/substituídas em CALENDARIO_BR:**
+
+| Evento | Removidos | Substituídos por phrases específicas |
+|---|---|---|
+| **Volta às aulas** | `caneta`, `lápis`, `agenda` | `caneta esferográfica`, `lápis de cor`, `lápis escolar`, `agenda escolar` |
+| **Carnaval** | `brilho`, `cooler` | `fantasia carnaval`, `máscara carnaval`, `isopor térmico` |
+| **Mulher** | `feminino`, `mulher`, `beleza`, `maquiagem` | `kit mulher`, `presente dia das mulheres`, `empoderamento feminino` |
+| **Mães** | `feminino`, `porta-retrato` | `kit mãe`, `porta-retrato mãe`, `pijama feminino` |
+| **Pais** | `masculino`, `gadget`, `cerveja`, `churrasco` | `kit churrasco pai`, `kit ferramenta pai` |
+| **São João** | `xadrez` | `camisa xadrez`, `tecido xadrez` |
+| **Primavera/Independência** | `flor`, `vaso`, `planta`, `verde` | `flor artificial`, `planta artificial`, `vaso decorativo`, `kit primavera` |
+| **Crianças** | `carrinho` | `carrinho infantil`, `carrinho brinquedo`, `kit infantil` |
+| **Professores** | `agenda`, `porta-caneta`, `organizador mesa` | `caneca professor`, `kit escritório`, `kit professor` |
+| **Ano Novo** | `branco`, `taça` | `taça champagne`, `roupa branca réveillon`, `kit ano novo` |
+
+**Palavras removidas/substituídas em ESTACOES_BR:**
+
+| Estação | Removidos | Substituídos por |
+|---|---|---|
+| **Verão** | `gelo`, `churrasco`, `boné`, `chapéu` | `boné aba reta`, `chapéu de praia`, `saia praia` |
+| **Outono** | `chá` (alone) | `chá quente`, `chá inverno`, `chá detox` |
+| **Inverno** | `luva`, `meia`, `chá`, `sopa` | `luva inverno`, `meia térmica`, `chá quente`, `panela sopa` |
+| **Primavera** | `flor`, `planta`, `vaso`, `limpeza`, `organização` | `flor artificial`, `vaso decorativo`, `kit limpeza primavera` |
+
+**Regra de ouro adicionada:** palavras genéricas de 1-2 sílabas **NUNCA** entram nas listas de evento/estação. Sempre frases compostas.
+
+### v3.36 (29/05/2026 manhã) — Remover "amor" genérico de Namorados
 Bot postou no grupo: "💕 Dia dos Namorados vem aí! 🎁 Box com 6 Minilivros 3 Palavrinhas - **Deus é amor!**" — livro religioso infantil com tag romântica, totalmente fora de contexto.
 
 Causa: `'amor'` sozinho em `CALENDARIO_BR.Namorados.palavras`. Como tem word-boundary, matchava "amor" como palavra inteira em qualquer produto: "Deus é amor", "amor de mãe", "amor verdadeiro pet", etc.

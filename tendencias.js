@@ -16,15 +16,19 @@
 const CALENDARIO_BR = [
   {
     mes: 1, dia: 6,  nome: 'Volta às aulas',
-    palavras: ['mochila', 'caderno', 'estojo', 'lápis', 'caneta', 'agenda', 'lancheira', 'material escolar', 'organizador escolar'],
+    // v3.37 — substituídos 'caneta' (era pego por lápis de olho), 'lápis' (idem)
+    // e 'agenda' (genérica) por frases específicas escolares
+    palavras: ['mochila escolar', 'caderno', 'estojo', 'lápis de cor', 'lápis escolar', 'caneta esferográfica', 'agenda escolar', 'lancheira', 'material escolar', 'organizador escolar', 'kit escolar'],
   },
   {
     mes: 2, dia: 17, nome: 'Carnaval',
-    palavras: ['fantasia', 'glitter', 'brilho', 'biquíni', 'maiô', 'tiara', 'havaiana', 'óculos de sol', 'protetor solar', 'isopor', 'cooler'],
+    // v3.37 — removido 'brilho' (qualquer produto brilhante) e 'cooler' (PC fan)
+    palavras: ['fantasia carnaval', 'glitter', 'biquíni', 'maiô', 'tiara', 'havaiana', 'kit carnaval', 'máscara carnaval', 'isopor térmico'],
   },
   {
     mes: 3, dia: 8,  nome: 'Dia da Mulher',
-    palavras: ['feminino', 'mulher', 'autoestima', 'autocuidado', 'beleza', 'kit beleza', 'maquiagem'],
+    // v3.37 — removidos 'feminino', 'mulher', 'beleza', 'maquiagem' (todos genéricos)
+    palavras: ['autoestima', 'autocuidado', 'kit beleza', 'kit mulher', 'presente dia das mulheres', 'empoderamento feminino', 'mulher poderosa'],
   },
   {
     // Páscoa varia (entre 22/03 e 25/04). Usamos 1/4 como aproximação.
@@ -43,7 +47,8 @@ const CALENDARIO_BR = [
   },
   {
     mes: 5, dia: 12, nome: 'Dia das Mães',
-    palavras: ['mãe', 'mães', 'maternidade', 'presente mãe', 'feminino', 'kit beleza', 'porta-retrato', 'caixa presente', 'pijama feminino', 'roupão'],
+    // v3.37 — removidos 'feminino' e 'porta-retrato' (genéricos demais)
+    palavras: ['mãe', 'mães', 'maternidade', 'presente mãe', 'presente para mãe', 'kit beleza', 'caixa presente mãe', 'pijama feminino', 'roupão feminino', 'kit mãe', 'porta-retrato mãe'],
   },
   {
     mes: 6, dia: 12, nome: 'Dia dos Namorados',
@@ -72,15 +77,18 @@ const CALENDARIO_BR = [
   },
   {
     mes: 6, dia: 24, nome: 'São João / Festa Junina',
-    palavras: ['junino', 'festa junina', 'caipira', 'xadrez', 'chapéu palha', 'bandeirinha', 'fogueira', 'pé de moleque', 'paçoca'],
+    // v3.37 — 'xadrez' substituído por 'camisa xadrez' (xadrez sozinho era tabuleiro)
+    palavras: ['junino', 'festa junina', 'caipira', 'camisa xadrez', 'tecido xadrez', 'chapéu palha', 'bandeirinha', 'fogueira', 'pé de moleque', 'paçoca', 'kit junino', 'arraiá'],
   },
   {
     mes: 8, dia: 10, nome: 'Dia dos Pais',
-    palavras: ['pai', 'pais', 'masculino', 'presente pai', 'churrasco', 'cerveja', 'kit cerveja', 'gadget', 'multiferramenta', 'navalha', 'barbeador', 'kit barbear', 'carteira masculina', 'mochila masculina', 'caneca pai', 'caneca cerveja'],
+    // v3.37 — removidos 'masculino', 'gadget', 'cerveja' (genéricos); 'churrasco' fica só em phrases
+    palavras: ['pai', 'pais', 'presente pai', 'presente para pai', 'kit cerveja', 'multiferramenta', 'navalha', 'barbeador', 'kit barbear', 'carteira masculina', 'mochila masculina', 'caneca pai', 'caneca cerveja', 'kit churrasco pai', 'kit ferramenta pai'],
   },
   {
     mes: 9, dia: 7,  nome: 'Primavera / Independência',
-    palavras: ['flor', 'vaso', 'planta', 'jardim', 'jardinagem', 'regador', 'verde'],
+    // v3.37 — removidos 'flor', 'vaso', 'planta', 'verde' (matchavam qualquer produto verde/floral)
+    palavras: ['jardim', 'jardinagem', 'regador', 'kit primavera', 'flor artificial', 'planta artificial', 'planta decorativa', 'vaso decorativo', 'arranjo flor'],
   },
   {
     mes: 9, dia: 15, nome: 'Dia do Cliente',
@@ -88,11 +96,13 @@ const CALENDARIO_BR = [
   },
   {
     mes: 10, dia: 12, nome: 'Dia das Crianças',
-    palavras: ['criança', 'infantil', 'brinquedo', 'kids', 'bebê', 'baby', 'pelúcia', 'boneca', 'carrinho', 'jogo educativo', 'mochila infantil', 'lancheira infantil'],
+    // v3.37 — 'carrinho' substituído por phrases específicas (era pego por carrinho de mão/churrasco)
+    palavras: ['criança', 'infantil', 'brinquedo', 'kids', 'bebê', 'baby', 'pelúcia', 'boneca', 'carrinho infantil', 'carrinho brinquedo', 'jogo educativo', 'mochila infantil', 'lancheira infantil', 'kit infantil'],
   },
   {
     mes: 10, dia: 15, nome: 'Dia dos Professores',
-    palavras: ['professor', 'professora', 'agenda', 'caneta especial', 'porta-caneta', 'caneca professor', 'kit escritório', 'organizador mesa'],
+    // v3.37 — removidos 'agenda', 'porta-caneta', 'organizador mesa' (genéricos)
+    palavras: ['professor', 'professora', 'caneta especial', 'caneca professor', 'kit escritório', 'agenda professor', 'organizador mesa professor', 'kit professor'],
   },
   {
     mes: 11, dia: 27, nome: 'Black Friday',
@@ -104,27 +114,33 @@ const CALENDARIO_BR = [
   },
   {
     mes: 12, dia: 31, nome: 'Ano Novo',
-    palavras: ['ano novo', 'reveillon', 'branco', 'champagne', 'taça', 'espumante'],
+    // v3.37 — removido 'branco' (qualquer produto branco) e 'taça' (replaced)
+    palavras: ['ano novo', 'reveillon', 'champagne', 'espumante', 'taça champagne', 'roupa branca réveillon', 'kit ano novo'],
   },
 ];
 
 // ─── ESTAÇÕES NO BRASIL (hemisfério sul) ────────────────────────────────────
+// v3.37 — limpeza de palavras genéricas que matchavam ano todo
 const ESTACOES_BR = {
   verao:    {
     meses: [12, 1, 2, 3],
-    palavras: ['verão', 'praia', 'piscina', 'biquíni', 'maiô', 'sunga', 'protetor solar', 'óculos de sol', 'ventilador', 'ar condicionado', 'climatizador', 'cooler térmico', 'cooler de bebida', 'gelo', 'churrasco', 'havaiana', 'rasteirinha', 'short praia', 'canga', 'boné', 'chapéu'],
+    // removidos 'gelo' (gelo de geladeira), 'churrasco' (já em Copa palavras), 'boné' e 'chapéu' (qualquer estilo)
+    palavras: ['verão', 'praia', 'piscina', 'biquíni', 'maiô', 'sunga', 'protetor solar', 'óculos de sol', 'ventilador', 'ar condicionado', 'climatizador', 'cooler térmico', 'cooler de bebida', 'havaiana', 'rasteirinha', 'short praia', 'canga', 'boné aba reta', 'chapéu de praia', 'saia praia'],
   },
   outono:   {
     meses: [4, 5],
-    palavras: ['outono', 'cardigan', 'manga longa leve', 'café especial', 'chá'],
+    // removido 'chá' alone (qualquer chá ano todo)
+    palavras: ['outono', 'cardigan', 'manga longa leve', 'café especial', 'chá quente', 'chá inverno', 'chá detox'],
   },
   inverno:  {
     meses: [6, 7, 8],
-    palavras: ['inverno', 'manta', 'cobertor', 'edredom', 'casaco', 'jaqueta', 'gorro', 'cachecol', 'luva', 'meia', 'aquecedor', 'soprador ar quente', 'pantufa', 'roupão', 'chá', 'fondue', 'sopa', 'caneca térmica'],
+    // removidos 'luva' (luva de limpeza), 'meia' (meia ano todo), 'chá' (genérico), 'sopa' (sopa instantânea)
+    palavras: ['inverno', 'manta', 'cobertor', 'edredom', 'casaco', 'jaqueta', 'gorro', 'cachecol', 'luva inverno', 'luva térmica', 'meia térmica', 'meia inverno', 'aquecedor', 'soprador ar quente', 'pantufa', 'roupão inverno', 'chá quente', 'fondue', 'panela sopa', 'caneca térmica'],
   },
   primavera:{
     meses: [9, 10, 11],
-    palavras: ['primavera', 'flor', 'planta', 'jardim', 'vaso', 'limpeza', 'organização', 'detox'],
+    // removidos 'flor', 'planta', 'vaso' (genéricos), 'limpeza' e 'organização' (qualquer produto)
+    palavras: ['primavera', 'jardim', 'jardinagem', 'flor artificial', 'planta decorativa', 'vaso decorativo', 'kit limpeza primavera', 'detox'],
   },
 };
 
