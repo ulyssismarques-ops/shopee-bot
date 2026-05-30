@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.35 (cooldown de 30 min no /admin/disparo pra evitar duplicação)
+**Versão atual:** v3.36 (remover "amor" genérico de Namorados — pegava livros religiosos)
 
 ---
 
@@ -507,7 +507,20 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
 
-### v3.35 (29/05/2026) — **EM PRODUÇÃO** ✅ — Cooldown anti-duplicação
+### v3.36 (29/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Remover "amor" genérico de Namorados
+Bot postou no grupo: "💕 Dia dos Namorados vem aí! 🎁 Box com 6 Minilivros 3 Palavrinhas - **Deus é amor!**" — livro religioso infantil com tag romântica, totalmente fora de contexto.
+
+Causa: `'amor'` sozinho em `CALENDARIO_BR.Namorados.palavras`. Como tem word-boundary, matchava "amor" como palavra inteira em qualquer produto: "Deus é amor", "amor de mãe", "amor verdadeiro pet", etc.
+
+Fix:
+- Removido `'amor'` sozinho de Namorados palavras
+- Adicionadas frases inequivocamente românticas: `'te amo'`, `'meu amor'`, `'amor da minha vida'`, `'eu te amo'`, `'i love you'`, `'love you'`
+- Livros religiosos agora caem em default chamada
+- Produtos românticos legítimos (caneca casal te amo, almofada coração) continuam pegando Namorados
+
+Lição: palavras genéricas (`amor`, `coração`, `chocolate`, `pelúcia`) NUNCA devem ser palavras-chave de evento. Use SEMPRE frases compostas inequívocas.
+
+### v3.35 (29/05/2026) — Cooldown anti-duplicação
 Usuário clicou em /admin/disparo várias vezes e o bot postou produtos repetidos no Instagram (4 posts iguais do mesmo produto). Faltava proteção.
 
 Fix:
