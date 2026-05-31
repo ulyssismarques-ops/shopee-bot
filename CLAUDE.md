@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.37 (auditoria preventiva — limpou ~25 palavras genéricas no calendário)
+**Versão atual:** v3.38 (fixes: Instagram beleza sem produtos em modo Copa + WA 408 por parse repetido do CSV)
 
 ---
 

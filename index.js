@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { CronJob } = require('cron');
 const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus, whatsappConectado, aguardarConexao } = require('./whatsapp');
-const { buscarProdutos, gerarLinkAfiliado, ehBeleza, diversificarSelecao } = require('./shopee');
+const { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico, contarPostsRecentes } = require('./historico');
 const { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN } = require('./instagram');
@@ -162,12 +162,11 @@ async function cicloInstagram(perfil) {
   const hora = new Date().toLocaleString('pt-BR', { timeZone: TZ });
   console.log(`\n[${hora}] Iniciando disparo Instagram [${perfil}]...`);
   try {
-    const produtos = await buscarProdutos(50);
-    if (!produtos.length) { console.log(`Nenhum produto para ${perfil}.`); return; }
-
+    // v3.38: usa buscarProdutosBeleza/Gerais (fix: top50 geral em Copa nao tem beleza)
     const filtrado = perfil === 'beleza'
-      ? produtos.filter(ehBeleza)
-      : produtos.filter(p => !ehBeleza(p));
+      ? await buscarProdutosBeleza(50)
+      : await buscarProdutosGerais(50);
+    if (!filtrado.length) { console.log(`Nenhum produto para ${perfil}.`); return; }
 
     // Resolve links dos top 3 antes de postar (v3.17 — carrossel)
     const top3 = selecionarTopN(filtrado, 3);
@@ -205,9 +204,11 @@ async function cicloReels(perfil) {
   const hora = new Date().toLocaleString('pt-BR', { timeZone: TZ });
   console.log(`\n[${hora}] Iniciando Reel Instagram [${perfil}]...`);
   try {
-    const produtos = await buscarProdutos(50);
-    if (!produtos.length) { console.log('Nenhum produto para Reel.'); return; }
-    const filtrado = perfil === 'beleza' ? produtos.filter(ehBeleza) : produtos.filter(p => !ehBeleza(p));
+    // v3.38: usa buscarProdutosBeleza/Gerais (mesmo fix do cicloInstagram)
+    const filtrado = perfil === 'beleza'
+      ? await buscarProdutosBeleza(50)
+      : await buscarProdutosGerais(50);
+    if (!filtrado.length) { console.log(`Nenhum produto para Reel [${perfil}].`); return; }
     const destaque = selecionarDestaque(filtrado);
     if (!destaque) { console.log(`Sem destaque para Reel [${perfil}].`); return; }
     destaque.linkAfiliado = await gerarLinkAfiliado(destaque.url, destaque.linkAfiliado);
@@ -261,7 +262,7 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.34 iniciando (com /admin/disparo pra testes manuais)...');
+  console.log('Shopee Bot v3.38 iniciando (com /admin/disparo pra testes manuais)...');
   // v3.34 — passa ciclos pra rota /admin/disparo poder dispará-los manualmente
   iniciarServidor({ cicloWhatsApp, cicloInstagram, cicloReels });
   await conectarWhatsApp();

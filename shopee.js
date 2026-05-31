@@ -137,6 +137,21 @@ async function baixarFeedStreaming() {
 // Mutex: evita race condition quando multiplos ciclos disparam simultaneamente
 let _feedDownloadPromise = null;
 
+// Cache do CSV parseado: evita reler 190MB 4x quando ciclos disparam juntos.
+// Sem o cache: 4 parses bloqueiam event loop ~6s -> Baileys perde keepalive -> WA 408.
+let _parsedCache = null;
+let _parsedCachePath = null;
+
+function obterProdutosFiltrados(filePath, filtro) {
+  if (!_parsedCache || _parsedCachePath !== filePath) {
+    const todos = parsearFeedDeArquivo(filePath);
+    _parsedCache = filtrarQualidade(todos);
+    _parsedCachePath = filePath;
+    console.log('  Cache parse: ' + _parsedCache.length + ' produtos filtrados');
+  }
+  return filtro ? _parsedCache.filter(filtro) : _parsedCache;
+}
+
 async function obterFeed() {
   try {
     if (fs.existsSync(CACHE_PATH) && fs.existsSync(CACHE_META)) {
@@ -483,12 +498,8 @@ function ehBeleza(produto) {
 async function buscarProdutos(limite = 30) {
   try {
     const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-
-    console.log('🔎 Aplicando filtros:');
-    const filtrados = filtrarQualidade(todos);
+    const filtrados = obterProdutosFiltrados(filePath);
     console.log(`✨ ${filtrados.length} produtos no funil final`);
-
     return filtrados.slice(0, limite);
   } catch (err) {
     console.error('❌ Erro ao buscar produtos:', err.message);
@@ -499,8 +510,7 @@ async function buscarProdutos(limite = 30) {
 async function buscarProdutosBeleza(limite = 30) {
   try {
     const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-    const filtrados = filtrarQualidade(todos.filter(ehBeleza));
+    const filtrados = obterProdutosFiltrados(filePath, ehBeleza);
     console.log(`💄 ${filtrados.length} produtos de beleza no funil`);
     return filtrados.slice(0, limite);
   } catch (err) {
@@ -512,8 +522,7 @@ async function buscarProdutosBeleza(limite = 30) {
 async function buscarProdutosGerais(limite = 30) {
   try {
     const filePath = await obterFeed();
-    const todos = parsearFeedDeArquivo(filePath);
-    const filtrados = filtrarQualidade(todos.filter(p => !ehBeleza(p)));
+    const filtrados = obterProdutosFiltrados(filePath, p => !ehBeleza(p));
     console.log(`🛍️  ${filtrados.length} produtos gerais no funil`);
     return filtrados.slice(0, limite);
   } catch (err) {
