@@ -56,7 +56,7 @@ const CALENDARIO_BR = [
     // "chocolate" pegava ovo de Páscoa, "pelúcia" pega brinquedo infantil ano todo.
     // v3.36 — removido 'amor' sozinho (matchava "Deus é amor", livros infantis, etc).
     // Substituído por frases inequivocamente românticas.
-    palavras: ['casal', 'namorada', 'namorado', 'romântico', 'coração', 'presente casal', 'pijama casal', 'caneca casal', 'almofada coração', 'aliança', 'colar coração', 'porta-retrato casal', 'kit relacionamento', 'jogo casal', 'caixa bombom', 'kit bombom', 'te amo', 'meu amor', 'minha amor', 'amor da minha vida', 'eu te amo', 'i love you', 'love you'],
+    palavras: ['casal', 'namorada', 'namorado', 'romântico', 'presente casal', 'pijama casal', 'caneca casal', 'almofada coração', 'aliança', 'colar coração', 'porta-retrato casal', 'kit relacionamento', 'jogo casal', 'caixa bombom', 'kit bombom', 'te amo', 'meu amor', 'minha amor', 'amor da minha vida', 'eu te amo', 'i love you', 'love you'],
   },
   {
     // Abertura do torneio — campanha começa 21 dias antes (21/05)
