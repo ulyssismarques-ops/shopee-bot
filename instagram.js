@@ -443,4 +443,54 @@ async function postarReel(produto, perfil) {
   }
 }
 
-module.exports = { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN };
+/**
+ * Valida os tokens do Instagram no boot — chama GET /{userId} pra cada perfil.
+ * Detecta tokens expirados/inválidos cedo e loga alerta destacado.
+ * Retorna { beleza: bool, geral: bool } — true se token OK.
+ */
+async function validarTokensInstagram() {
+  const resultado = { beleza: null, geral: null };
+
+  for (const perfil of ['beleza', 'geral']) {
+    const userId = perfil === 'beleza' ? IG_BELEZA_USER_ID : IG_GERAL_USER_ID;
+    const token  = perfil === 'beleza' ? IG_BELEZA_TOKEN   : IG_GERAL_TOKEN;
+    if (!userId || !token) {
+      console.warn(`  ⚠️  Instagram [${perfil}] sem userId/token nas env vars.`);
+      resultado[perfil] = false;
+      continue;
+    }
+    try {
+      // GET /{user_id}?fields=id,username — chamada barata pra validar token
+      await axios.get(`${BASE_URL}/${userId}`, {
+        params: { fields: 'id,username', access_token: token },
+        timeout: 10000,
+      });
+      console.log(`  ✅  Token Instagram [${perfil}] válido.`);
+      resultado[perfil] = true;
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message;
+      const code = err.response?.data?.error?.code;
+      const expirou = msg.includes('expired') || msg.includes('Session has expired') || code === 190;
+
+      console.error('\n' + '🔴'.repeat(40));
+      console.error(`🔴  TOKEN INSTAGRAM [${perfil.toUpperCase()}] ${expirou ? 'EXPIROU' : 'INVÁLIDO'}!`);
+      console.error(`🔴  Erro: ${msg}${code ? ' (code ' + code + ')' : ''}`);
+      console.error('🔴  ');
+      console.error('🔴  Disparos pra este perfil VÃO FALHAR até reemitir o token.');
+      console.error('🔴  ');
+      console.error('🔴  Como reemitir (15 min, ver CLAUDE.md "Page Tokens do Instagram"):');
+      console.error('🔴   1. Graph API Explorer → app "Achadinhos da Roh" → Generate Token');
+      console.error('🔴      Permissões: pages_show_list, pages_read_engagement,');
+      console.error('🔴      pages_manage_posts, instagram_basic, instagram_content_publish,');
+      console.error('🔴      business_management');
+      console.error('🔴   2. Troca por long-lived: /oauth/access_token?grant_type=fb_exchange_token');
+      console.error('🔴   3. GET /me/accounts → pega Page Tokens (esses sim nunca expiram)');
+      console.error('🔴   4. Atualiza INSTAGRAM_' + perfil.toUpperCase() + '_TOKEN no Railway → Variables');
+      console.error('🔴'.repeat(40) + '\n');
+      resultado[perfil] = false;
+    }
+  }
+  return resultado;
+}
+
+module.exports = { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram };

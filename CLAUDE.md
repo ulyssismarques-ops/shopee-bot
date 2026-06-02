@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.38 (fixes: Instagram beleza sem produtos em modo Copa + WA 408 por parse repetido do CSV)
+**Versão atual:** v3.39 (validação de token Instagram no boot — alerta destacado se expirado)
 
 ---
 
@@ -507,7 +507,28 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
 
-### v3.37 (29/05/2026 manhã) — **EM PRODUÇÃO** ✅ — Auditoria preventiva do calendário
+### v3.39 (01/06/2026 noite) — **EM PRODUÇÃO** ✅ — Validação de token Instagram no boot
+Tokens Instagram expiraram em 31/05/2026 19:00 PDT (~6 dias após criação em 25/05). Bot continuou rodando sem detectar até o disparo das 20h, quando falhou silenciosamente. Health Check pegou só às 23h.
+
+```
+❌ Carrossel [geral] FALHOU: Error validating access token: Session has expired
+   on Sunday, 31-May-26 19:00:00 PDT (code 190)
+```
+
+Causa raiz: provavelmente os tokens em uso eram **User Tokens (60 dias)** em vez de **Page Tokens (eternos)** — ou Meta invalidou por alguma razão.
+
+Fix preventivo (essa versão):
+- Nova função `validarTokensInstagram()` em `instagram.js` chama `GET /{userId}?fields=id,username` com cada token no boot
+- Loga alerta destacado `🔴 × 40` se token expirado/inválido, com passo a passo de reemissão
+- Detecta o problema MUITO antes do cron disparar — economiza horas perdidas
+
+Como **reemitir tokens** (também documentado em "Tarefas de manutenção"):
+1. Graph API Explorer → app "Achadinhos da Roh" → Generate Token (6 permissões)
+2. Troca por long-lived: `/oauth/access_token?grant_type=fb_exchange_token`
+3. `GET /me/accounts` → pega os Page Tokens (esses sim, eternos)
+4. Atualiza `INSTAGRAM_BELEZA_TOKEN` e `INSTAGRAM_GERAL_TOKEN` no Railway
+
+### v3.37 (29/05/2026 manhã) — Auditoria preventiva do calendário
 Depois do bug `'amor'` → "Deus é amor", auditei todas as palavras de eventos e estações pra eliminar genéricos que vão bugar no futuro.
 
 **Palavras removidas/substituídas em CALENDARIO_BR:**

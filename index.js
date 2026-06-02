@@ -4,7 +4,7 @@ const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus, 
 const { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico, contarPostsRecentes } = require('./historico');
-const { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN } = require('./instagram');
+const { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram } = require('./instagram');
 const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID         = process.env.WHATSAPP_GROUP_ID;
@@ -262,10 +262,15 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.38 iniciando (com /admin/disparo pra testes manuais)...');
+  console.log('Shopee Bot v3.39 iniciando (validação de token Instagram + cache parse + admin/disparo)...');
   // v3.34 — passa ciclos pra rota /admin/disparo poder dispará-los manualmente
   iniciarServidor({ cicloWhatsApp, cicloInstagram, cicloReels });
   await conectarWhatsApp();
+
+  // v3.39 — valida tokens Instagram no boot pra detectar expiração cedo
+  // (caso de 31/05/2026: tokens expiraram e ninguém viu até disparo das 20h)
+  console.log('\n🔑 Validando tokens Instagram...');
+  await validarTokensInstagram();
 
   HORARIOS_WHATSAPP.forEach((cron) => new CronJob(cron, cicloWhatsApp, null, true, TZ));
   HORARIOS_IG_BELEZA.forEach((cron) => new CronJob(cron, () => cicloInstagram('beleza'), null, true, TZ));
