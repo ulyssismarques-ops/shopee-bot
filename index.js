@@ -4,7 +4,7 @@ const { conectarWhatsApp, enviarMensagem, enviarImagemComLegenda, postarStatus, 
 const { buscarProdutos, buscarProdutosBeleza, buscarProdutosGerais, gerarLinkAfiliado, diversificarSelecao } = require('./shopee');
 const { formatarMensagem } = require('./mensagem');
 const { filtrarNovos, marcarEnviados, resetarHistorico, contarPostsRecentes } = require('./historico');
-const { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram } = require('./instagram');
+const { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram, checkDiarioTokens } = require('./instagram');
 const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID         = process.env.WHATSAPP_GROUP_ID;
@@ -262,7 +262,7 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.39 iniciando (validação de token Instagram + cache parse + admin/disparo)...');
+  console.log('Shopee Bot v3.40 iniciando (token-status endpoint + check diário 7h + validação no boot)...');
   // v3.34 — passa ciclos pra rota /admin/disparo poder dispará-los manualmente
   iniciarServidor({ cicloWhatsApp, cicloInstagram, cicloReels });
   await conectarWhatsApp();
@@ -281,13 +281,17 @@ async function main() {
 
   new CronJob(HORARIO_HEALTH_CHECK, healthCheck, null, true, TZ);
 
-  console.log('\nScheduler ativo (v3.29 — frequência reduzida):');
-  console.log('   WhatsApp:         20h (1x/dia, 5 produtos) — era 12h+20h');
+  // v3.40 — check diário de tokens 7h. Alerta no log se token vai expirar em <10 dias.
+  new CronJob('0 7 * * *', checkDiarioTokens, null, true, TZ);
+
+  console.log('\nScheduler ativo (v3.40):');
+  console.log('   WhatsApp:         20h (1x/dia, 5 produtos)');
   console.log('   Status WA:        20h (1x/dia)');
   console.log('   IG beleza:        20h (1x/dia)');
-  console.log('   IG geral:         20h (1x/dia) — era 5x/dia, reduzido pra evitar feed cheio');
+  console.log('   IG geral:         20h (1x/dia)');
   console.log('   Reels (beleza+geral): 10h (ffmpeg 9:16 com audio)');
-  console.log('   Health check:     23h (relatório diário no log)');
+  console.log('   Health check:     23h');
+  console.log('   Check tokens IG:   7h (alerta se expira em <10 dias)');
 
   if (TESTAR_AGORA) {
     console.log('\n🧪 MODO TESTE ATIVO — disparando TODOS os canais em 10s...');

@@ -581,6 +581,56 @@ function iniciarServidor(ciclos = {}) {
     });
   });
 
+  // v3.41 — endpoint pra checar status dos tokens Instagram do celular
+  // Acesso: /admin/token-status?key=ADMIN_KEY
+  app.get('/admin/token-status', async (req, res) => {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) {
+      return res.status(503).json({ erro: 'ADMIN_KEY não configurada no Railway' });
+    }
+    if (req.query.key !== adminKey) {
+      return res.status(403).json({ erro: 'key inválida' });
+    }
+
+    try {
+      const { inspecionarToken } = require('./instagram');
+      const beleza = await inspecionarToken('beleza');
+      const geral  = await inspecionarToken('geral');
+
+      // Render simples em HTML pra abrir no celular (não só JSON)
+      const formatar = (r) => {
+        const cor = !r.ok ? '#c0392b'
+                  : (r.expira_em_dias === null || r.expira_em_dias > 30) ? '#27ae60'
+                  : r.expira_em_dias > 10 ? '#f39c12'
+                  : '#c0392b';
+        const status = !r.ok ? `❌ INVÁLIDO: ${r.erro || 'erro desconhecido'}`
+                     : r.expira_em_dias === null ? '✅ Sem expiry (permanente)'
+                     : r.expira_em_dias <= 0 ? `🔴 EXPIROU em ${r.expires_at}`
+                     : r.expira_em_dias <= 10 ? `⚠️ Expira em ${r.expira_em_dias} dias`
+                     : `✅ Expira em ${r.expira_em_dias} dias`;
+        return `
+          <div style="background:${cor};color:white;padding:20px;margin:10px;border-radius:12px;font-family:system-ui;">
+            <h2 style="margin:0 0 10px;">${r.perfil.toUpperCase()}</h2>
+            <div style="font-size:18px;font-weight:bold;">${status}</div>
+            ${r.expires_at ? `<div style="font-size:13px;margin-top:8px;opacity:0.9;">Expires: ${r.expires_at}</div>` : ''}
+            ${r.tipo ? `<div style="font-size:13px;opacity:0.9;">Tipo: ${r.tipo}</div>` : ''}
+            ${r.scopes ? `<div style="font-size:11px;margin-top:6px;opacity:0.7;">Scopes: ${(r.scopes || []).join(', ')}</div>` : ''}
+          </div>`;
+      };
+
+      res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Token status</title></head><body style="background:#f5f5f5;margin:0;padding:20px;">
+        <h1 style="font-family:system-ui;text-align:center;">🔑 Status dos Tokens Instagram</h1>
+        ${formatar(beleza)}
+        ${formatar(geral)}
+        <div style="text-align:center;color:#666;font-size:13px;margin-top:20px;font-family:system-ui;">
+          Checagem em tempo real via Meta debug_token. Atualize a página pra rechecar.
+        </div>
+      </body></html>`);
+    } catch (err) {
+      res.status(500).json({ erro: err.message });
+    }
+  });
+
   app.use((req, res) => res.redirect('/'));
 
   const server = app.listen(PORT, () => {
@@ -592,6 +642,7 @@ function iniciarServidor(ciclos = {}) {
     console.log(`   • /story/:f → serve JPG 9:16 do Story (Meta API busca)`);
     if (process.env.ADMIN_KEY) {
       console.log(`   • /admin/disparo?key=...&canal=tudo|wa|geral|beleza|reels → disparo manual`);
+      console.log(`   • /admin/token-status?key=...                              → status tokens IG`);
     }
   });
 

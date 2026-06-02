@@ -493,4 +493,81 @@ async function validarTokensInstagram() {
   return resultado;
 }
 
-module.exports = { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram };
+/**
+ * v3.40 — Inspeciona token via debug_token endpoint.
+ * Retorna { expira_em_dias, expires_at, data_access_expires_at, is_valid, scopes, ... }
+ * `expira_em_dias = null` significa token sem expiry (o ideal).
+ * `expira_em_dias <= 0` significa que já expirou.
+ */
+async function inspecionarToken(perfil) {
+  const token = perfil === 'beleza' ? IG_BELEZA_TOKEN : IG_GERAL_TOKEN;
+  if (!token) return { perfil, ok: false, erro: 'sem token configurado' };
+
+  try {
+    const resp = await axios.get(`${BASE_URL}/debug_token`, {
+      params: { input_token: token, access_token: token },
+      timeout: 10000,
+    });
+    const data = resp.data?.data || {};
+    const expiresAt = data.expires_at || 0;
+    const dataAccessExpiresAt = data.data_access_expires_at || 0;
+
+    let expiraEmDias = null;
+    if (expiresAt > 0) {
+      const agoraSec = Math.floor(Date.now() / 1000);
+      expiraEmDias = Math.floor((expiresAt - agoraSec) / 86400);
+    }
+
+    return {
+      perfil,
+      ok: data.is_valid === true,
+      expira_em_dias: expiraEmDias,
+      expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : 'nunca',
+      data_access_expires_at: dataAccessExpiresAt ? new Date(dataAccessExpiresAt * 1000).toISOString() : 'nunca',
+      tipo: data.type,
+      app_id: data.app_id,
+      scopes: data.scopes,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    return { perfil, ok: false, erro: msg };
+  }
+}
+
+/**
+ * v3.40 — Checagem diária. Loga 🚨 destacado se algum token vai expirar em <10 dias.
+ * Pra ser chamado por cron 7h em index.js.
+ */
+async function checkDiarioTokens() {
+  console.log('\n🔑 Check diário de tokens Instagram (cron 7h)...');
+  const beleza = await inspecionarToken('beleza');
+  const geral  = await inspecionarToken('geral');
+
+  for (const r of [beleza, geral]) {
+    if (!r.ok) {
+      console.error('\n' + '🚨'.repeat(40));
+      console.error(`🚨  TOKEN INSTAGRAM [${r.perfil.toUpperCase()}] INVÁLIDO!`);
+      console.error(`🚨  ${r.erro || 'token rejeitado pelo Meta'}`);
+      console.error(`🚨  Reemitir AGORA — ver CLAUDE.md "Page Tokens do Instagram"`);
+      console.error('🚨'.repeat(40) + '\n');
+      continue;
+    }
+    if (r.expira_em_dias === null) {
+      console.log(`  ✅  [${r.perfil}] sem expiry (Page Token permanente)`);
+    } else if (r.expira_em_dias <= 0) {
+      console.error('\n' + '🚨'.repeat(40));
+      console.error(`🚨  TOKEN INSTAGRAM [${r.perfil.toUpperCase()}] JÁ EXPIROU em ${r.expires_at}`);
+      console.error('🚨'.repeat(40) + '\n');
+    } else if (r.expira_em_dias <= 10) {
+      console.error('\n' + '⚠️ '.repeat(20));
+      console.error(`⚠️   TOKEN [${r.perfil.toUpperCase()}] EXPIRA EM ${r.expira_em_dias} DIAS (${r.expires_at})`);
+      console.error(`⚠️   Reemitir essa semana pra não dar quebra.`);
+      console.error('⚠️ '.repeat(20) + '\n');
+    } else {
+      console.log(`  ✅  [${r.perfil}] expira em ${r.expira_em_dias} dias`);
+    }
+  }
+  return { beleza, geral };
+}
+
+module.exports = { postarNoInstagram, postarCarrossel, postarStory, postarReel, selecionarDestaque, selecionarTopN, validarTokensInstagram, inspecionarToken, checkDiarioTokens };

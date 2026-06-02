@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.39 (validação de token Instagram no boot — alerta destacado se expirado)
+**Versão atual:** v3.40 (token-status endpoint + check diário 7h + validação no boot)
 
 ---
 
@@ -247,12 +247,13 @@ Os 3 canais disparam ao mesmo tempo (WhatsApp + IG beleza + IG geral). Cada um �
 
 | Quando | O quê | Por quê |
 |---|---|---|
-| **A cada 60 dias** | Verificar se Instagram ainda posta normalmente nos 2 perfis | Page Access Tokens **em teoria não expiram**, mas Meta muda políticas — vale conferir preventivamente. Tokens criados em **25/05/2026** → próxima verificação **~24/07/2026** |
+| **Automatizado (cron 7h)** | Bot checa tokens IG e loga 🚨 se expira em <10 dias | v3.40: `checkDiarioTokens()` lê `debug_token` da Meta, alerta visível no Railway log antes de quebrar |
+| **Quando quiser** | Acessar `/admin/token-status?key=ADMIN_KEY` no celular | v3.40: render HTML verde/amarelo/vermelho com expiry de cada token em tempo real |
 | **Quando o WhatsApp parar de enviar** | Atualizar `SHOPEE_FEED_URL` | A URL do feed Shopee **muda às vezes** (token expira na conta de afiliada) |
-| **Se Instagram parar de postar** | Reemitir Page Tokens (ver passo a passo abaixo) | Token pode ser invalidado se a Rosana revogar acesso do app ou trocar senha |
+| **Se Instagram parar de postar** | Reemitir Page Tokens (ver passo a passo abaixo) | Tokens podem ser invalidados se Rosana revogar acesso/trocar senha, OU se Meta detectar atividade suspeita |
 | **Quando atualizar tokens Meta** | Atualizar `INSTAGRAM_BELEZA_TOKEN` e `INSTAGRAM_GERAL_TOKEN` no Railway | Os tokens novos vão no Railway → Variables, redeploy automático |
 
-⚠️ **Não esperar quebrar pra agir nos tokens.** Marcar lembrete a cada 60 dias pra abrir os 2 perfis Instagram e conferir que o último post saiu certinho. Se der erro, é hora de reemitir.
+⚠️ **Realidade aprendida em 31/05/2026:** Page Tokens **não são garantidos eternos**. Os criados em 25/05 expiraram em 6 dias. Pode ter sido User Token (60 dias) disfarçado de Page Token, ou Meta invalidando por padrão suspeito. **Sempre confirmar via debug_token que `expires_at: 0` antes de salvar no Railway.**
 
 ---
 
@@ -506,6 +507,26 @@ Baileys embutido + cookie jar + headers anti-bot. Ainda 403.
 - **Mutex no download do feed** (`shopee.js`): quando 3 ciclos disparam às 20h simultaneamente e o cache expirou, apenas o primeiro baixa; os outros aguardam o mesmo Promise. Elimina `ENOENT: rename .tmp` que derrubava 2 dos 3 ciclos.
 - **Reel geral escalonado pra 10h30** (`index.js`): antes ambos rodavam às 10h simultâneos, competindo por recursos e causando code 9007.
 - **Wait do Reel 45s → 90s** (`instagram.js`): processamento de vídeo precisa de mais tempo que imagem.
+
+### v3.40 (02/06/2026) — **EM PRODUÇÃO** ✅ — Token-status endpoint + check diário 7h
+Tokens Instagram expiraram DE NOVO em 31/05 às 19h, mesmo o doc dizendo "Page Tokens não expiram". Aprendizado: tokens NÃO são eternos como prometido — precisam de monitoramento ativo.
+
+Novas proteções:
+- **`inspecionarToken(perfil)`** (`instagram.js`) — chama `GET /debug_token` da Meta, retorna `{ ok, expira_em_dias, expires_at, scopes, tipo, app_id }`. Detecta tanto invalidação quanto expiry futuro.
+- **`checkDiarioTokens()`** (`instagram.js`) — chamada diária:
+  - Sem expiry (`expira_em_dias === null`) → ✅ OK
+  - Expira em >10 dias → ✅ OK
+  - Expira em ≤10 dias → ⚠️ alerta amarelo
+  - Já expirou → 🚨 alerta vermelho (× 40 linhas no log)
+  - Token inválido → 🚨 alerta vermelho com instruções de reemissão
+- **CronJob `0 7 * * *`** (`index.js`) — roda checkDiarioTokens todo dia às 7h. Você vê o aviso no Railway logs ANTES do disparo das 20h.
+- **Endpoint `/admin/token-status?key=ADMIN_KEY`** (`landingpage.js`):
+  - Render HTML mobile-friendly com card verde/amarelo/vermelho pra cada perfil
+  - Mostra `expires_at`, `scopes`, `app_id` em tempo real
+  - Acesso direto do celular: `https://shopee-bot-production-e39e.up.railway.app/admin/token-status?key=...`
+  - Refresh-friendly: atualiza a página pra rechecar
+
+Doc atualizado pra falar a verdade: Page Tokens **podem** expirar, especialmente se o long-lived flow não rodar 100% perfeito.
 
 ### v3.39 (01/06/2026 noite) — **EM PRODUÇÃO** ✅ — Validação de token Instagram no boot
 Tokens Instagram expiraram em 31/05/2026 19:00 PDT (~6 dias após criação em 25/05). Bot continuou rodando sem detectar até o disparo das 20h, quando falhou silenciosamente. Health Check pegou só às 23h.
