@@ -262,7 +262,7 @@ async function healthCheck() {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  console.log('Shopee Bot v3.40 iniciando (token-status endpoint + check diário 7h + validação no boot)...');
+  console.log('Shopee Bot v3.41 iniciando (GEO discovery + token-status + check diário tokens)...');
   // v3.34 — passa ciclos pra rota /admin/disparo poder dispará-los manualmente
   iniciarServidor({ cicloWhatsApp, cicloInstagram, cicloReels });
   await conectarWhatsApp();

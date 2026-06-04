@@ -1,6 +1,6 @@
 # Shopee Bot — Achadinhos da Roh
 
-Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão atual: **v3.33**.
+Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão atual: **v3.41**.
 
 ## O que faz
 
@@ -12,6 +12,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão a
 - Posta carrossel top 3 + Story em 2 perfis Instagram via Meta Graph API
 - Gera Reel MP4 9:16 com zoom Ken Burns via ffmpeg (1x/dia às 10h)
 - Serve landing page pública com grid dos últimos 25 produtos por categoria
+- **Descoberta por IA (GEO, v3.41):** JSON-LD + `/beleza.json` `/geral.json` + robots.txt + sitemap.xml pra ChatGPT/Perplexity/Gemini citarem as ofertas (clique → comissão)
 
 ## Horários (v3.29 — 1x/dia no pico)
 
@@ -36,11 +37,11 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee. Versão a
 |---|---|
 | `index.js` | Scheduler cron + orquestração (WhatsApp + Instagram + Reels + Health check) |
 | `whatsapp.js` | Baileys: conexão, QR, envio texto/imagem, status@broadcast |
-| `shopee.js` | Feed CSV, filtros, score, diversificação por setor |
+| `shopee.js` | Feed CSV, filtros, score, cache parse, diversificação por setor |
 | `tendencias.js` | Calendário comercial BR, scoring 0-200, chamadas contextuais |
 | `instagram.js` | Meta Graph API: feed, carrossel, story, reel nos 2 perfis |
 | `reels.js` | ffmpeg: gera MP4 9:16 (Reel) e JPEG 9:16 (Story) |
-| `landingpage.js` | Express: `/beleza`, `/geral`, `/health`, `/reel/:file`, `/story/:file` |
+| `landingpage.js` | Express: páginas + JSON-LD/`.json`/robots/sitemap (GEO) + `/reel/:file` `/story/:file` `/admin/disparo` |
 | `mensagem.js` | Formato da mensagem WhatsApp com PS rotativo |
 | `historico.js` | Ring buffer 300 IDs anti-repetição + metadados landing page |
 | `test.js` | Testa scoring/filtros localmente sem disparar produção |
@@ -63,7 +64,7 @@ No Railway → Variables → adicione `TESTAR_AGORA=true` → Redeploy.
 ## Manutenção
 
 - **Feed URL expirou** (`401/403` nos logs): `affiliate.shopee.com.br` → Criativo → Feed de produto → Ver Link → atualiza `SHOPEE_FEED_URL` no Railway
-- **Instagram parou** (`Invalid OAuth access token`): reemitir Page Tokens via Graph API Explorer (ver CLAUDE.md)
+- **Instagram parou** (`Invalid OAuth` ou `code 200`): reemitir Page Tokens via Graph API Explorer → `/me/accounts?fields=name,access_token` → atualiza `INSTAGRAM_BELEZA_TOKEN` e `INSTAGRAM_GERAL_TOKEN`
 - **WhatsApp deslogou** (`Sessão encerrada (logout)`): `rm -rf /data/baileys_auth` no terminal Railway → restart → reescanear QR
 - **Verificação preventiva tokens Meta**: a cada 60 dias — próxima em 24/07/2026
 

@@ -21,7 +21,7 @@ Bot Node.js que automatiza o trabalho de afiliada da Rosana na Shopee:
 - Anti-repetição: ring buffer de 300 IDs em `/data/historico.json`
 
 **Em produção desde:** 24/05/2026
-**Versão atual:** v3.40 (token-status endpoint + check diário 7h + validação no boot)
+**Versão atual:** v3.41 (GEO — landing pages citáveis por IA: JSON-LD + `.json` + robots.txt + sitemap + meta/OG)
 
 ---
 
@@ -319,6 +319,17 @@ Os 3 canais disparam ao mesmo tempo (WhatsApp + IG beleza + IG geral). Cada um �
 ---
 
 ## 📜 Histórico de versões
+
+### v3.41 (04/06/2026) — Camada de descoberta agêntica (GEO)
+Landing pages tornadas legíveis e citáveis por motores de IA (ChatGPT, Perplexity, Gemini, AI Overviews). Aposta: capturar o fluxo inverso — alguém pergunta à IA "melhor X barato na Shopee", a IA cita nossa oferta, o clique cai no link de afiliado → comissão. Custo marginal zero (infra já roda). Patch cirúrgico só em `landingpage.js` (+ bump de versão no boot do `index.js`).
+- **JSON-LD** `ItemList`→`Product`→`Offer` no `<head>` de `/beleza` e `/geral`. `Product.url` e `Offer.url` = link de afiliado (comissão preservada — confirmado em teste com fixture).
+- **Escape correto pra `<script>`**: `JSON.stringify(obj).replace(/</g,'<')` — NÃO `esc()`, que corromperia o JSON (entidade HTML não é desfeita dentro de raw text). `esc()` fica só nas meta/OG, que são contexto HTML.
+- **Endpoints JSON** `/beleza.json` e `/geral.json` (shape: name/price/originalPrice/discount/link/image/crossBorder) — declarados ANTES do catch-all (lição v3.20/B1, senão viram 302).
+- **`/robots.txt`** liberando explicitamente GPTBot, OAI-SearchBot, ChatGPT-User, PerplexityBot, ClaudeBot, Claude-Web, Google-Extended, Applebot-Extended + `Sitemap:`.
+- **`/sitemap.xml`** (`/`, `/beleza`, `/geral`; lastmod + changefreq daily).
+- **meta description + Open Graph + `rel=canonical`** no `<head>`. Helper `siteBaseUrl()` reaproveita `RAILWAY_PUBLIC_URL`.
+- **Próximo de maior ROI:** `aggregateRating` no JSON-LD — exige armazenar `avaliacao` em `historico.js::salvarProdutoPostado` E exibir a nota **visível** na página (política Google: rating em markup tem que estar visível, senão penaliza). Só vale pra posts novos daí em diante.
+- Validação: `node --check` + servidor local com fixture; `offers.url` confirmado como link de afiliado real (não a URL da página). Meta: aparecer citado em ChatGPT/Perplexity em 30-45 dias e medir cliques desse canal.
 
 ### v1.0 (24/05/2026 manhã) — descartada
 Puppeteer + scraping API + Evolution API + Postgres. Falhou: 403 em todos IPs.
