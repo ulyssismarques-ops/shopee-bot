@@ -46,6 +46,25 @@ function calcularDesconto(precoAtual, precoOriginal) {
   return Math.round(((precoOriginal - precoAtual) / precoOriginal) * 100);
 }
 
+// Base URL pública — reaproveita a env var dos Reels (RAILWAY_PUBLIC_URL).
+function siteBaseUrl() {
+  return (process.env.RAILWAY_PUBLIC_URL || 'https://shopee-bot-production-e39e.up.railway.app').replace(/\/$/, '');
+}
+
+// Mapeia o produto interno (nome/precoAtual/...) pro shape público do .json
+// Campo do link confirmado como `linkAfiliado` (historico.js:72) — preserva a comissão.
+function produtosJson(categoria) {
+  return lerProdutosPostados(categoria).map(p => ({
+    name: p.nome,
+    price: typeof p.precoAtual === 'number' ? p.precoAtual : null,
+    originalPrice: typeof p.precoOriginal === 'number' ? p.precoOriginal : null,
+    discount: typeof p.desconto === 'number' ? p.desconto : calcularDesconto(p.precoAtual, p.precoOriginal),
+    link: p.linkAfiliado || null,
+    image: p.imagem || null,
+    crossBorder: p.crossBorder,
+  }));
+}
+
 function renderCardDestaque(p, cor) {
   const desconto = calcularDesconto(p.precoAtual, p.precoOriginal);
   const precoOrig = p.precoOriginal
@@ -112,6 +131,58 @@ function renderPagina(categoria) {
   const destaque = produtos[0];
   const restante = produtos.slice(1);
 
+  // ─── GEO (v3.41): dados estruturados pra motores de IA citarem as ofertas ───
+  // Base URL reaproveita a env var que os Reels já usam (não cria var nova).
+  const BASE_URL = siteBaseUrl();
+  const pageUrl = `${BASE_URL}/${categoria}`;
+
+  const itemListElement = produtos.map((p, i) => {
+    const prod = { '@type': 'Product', name: p.nome };
+    if (p.imagem) prod.image = p.imagem;
+    if (p.linkAfiliado) prod.url = p.linkAfiliado;   // link de afiliado = alvo da citação (comissão)
+    if (typeof p.precoAtual === 'number') {
+      prod.offers = {
+        '@type': 'Offer',
+        price: p.precoAtual.toFixed(2),
+        priceCurrency: 'BRL',
+        availability: 'https://schema.org/InStock',
+        url: p.linkAfiliado || pageUrl,
+      };
+    }
+    return { '@type': 'ListItem', position: i + 1, item: prod };
+  });
+
+  // JSON-LD é raw text dentro de <script>: NÃO usar esc() (corromperia o JSON).
+  // Escapar só `<` pra < neutraliza o único vetor (</script>) sem tocar nos dados.
+  const jsonLd = produtos.length
+    ? `<script type="application/ld+json">${JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: cfg.titulo,
+        url: pageUrl,
+        numberOfItems: produtos.length,
+        itemListElement,
+      }).replace(/</g, '\\u003c')}</script>`
+    : '';
+
+  // Meta description + Open Graph (contexto HTML → esc() é o correto aqui).
+  const descBase = destaque
+    ? `${destaque.nome} por R$ ${fmtBRL(destaque.precoAtual)}${restante.length ? ` e mais ${restante.length} ofertas` : ''} da Shopee, com link direto pra comprar.`
+    : `${cfg.titulo} — ${cfg.subtitulo}.`;
+  const metaDesc = esc(descBase.slice(0, 200));   // corta antes de escapar pra não partir entidade
+  const ogImg = destaque && destaque.imagem ? esc(destaque.imagem) : '';
+  const metaTags = [
+    `<link rel="canonical" href="${esc(pageUrl)}">`,
+    `<meta name="description" content="${metaDesc}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="${esc(cfg.titulo)}">`,
+    `<meta property="og:title" content="${esc(cfg.titulo)}">`,
+    `<meta property="og:description" content="${metaDesc}">`,
+    `<meta property="og:url" content="${esc(pageUrl)}">`,
+    ogImg ? `<meta property="og:image" content="${ogImg}">` : '',
+    `<meta name="twitter:card" content="summary_large_image">`,
+  ].filter(Boolean).join('\n');
+
   const blocoDestaque = destaque
     ? `<div class="section-title">✨ Destaque de agora <span class="badge" style="background:${cfg.cor}">NOVO</span></div>
        ${renderCardDestaque(destaque, cfg.cor)}`
@@ -133,6 +204,8 @@ function renderPagina(categoria) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="${cfg.cor}">
 <title>${esc(cfg.titulo)}</title>
+${metaTags}
+${jsonLd}
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -629,6 +702,36 @@ function iniciarServidor(ciclos = {}) {
     } catch (err) {
       res.status(500).json({ erro: err.message });
     }
+  });
+
+  // ─── GEO (v3.41): endpoints JSON limpos — ANTES do catch-all (lição v3.20/B1) ───
+  app.get('/beleza.json', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json(produtosJson('beleza'));
+  });
+  app.get('/geral.json', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json(produtosJson('geral'));
+  });
+
+  // ─── GEO (v3.41): robots.txt + sitemap.xml — ABRE pros crawlers de IA ───
+  // (também antes do catch-all, senão viram 302 — lição v3.20/B1)
+  app.get('/robots.txt', (req, res) => {
+    const bots = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'Claude-Web', 'Google-Extended', 'Applebot-Extended'];
+    const linhas = [];
+    for (const b of bots) { linhas.push(`User-agent: ${b}`, 'Allow: /', ''); }
+    linhas.push('User-agent: *', 'Allow: /', '', `Sitemap: ${siteBaseUrl()}/sitemap.xml`, '');
+    res.type('text/plain').set('Cache-Control', 'public, max-age=3600').send(linhas.join('\n'));
+  });
+  app.get('/sitemap.xml', (req, res) => {
+    const base = siteBaseUrl();
+    const hoje = new Date().toISOString().slice(0, 10);
+    const urls = ['/', '/beleza', '/geral'].map(path =>
+      `  <url><loc>${base}${path}</loc><lastmod>${hoje}</lastmod><changefreq>daily</changefreq></url>`
+    ).join('\n');
+    res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+    );
   });
 
   app.use((req, res) => res.redirect('/'));
