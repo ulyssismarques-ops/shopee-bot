@@ -734,6 +734,11 @@ function iniciarServidor(ciclos = {}) {
     );
   });
 
+  // Verificação Google Search Console (método HTML file) — antes do catch-all
+  app.get('/google34b6b115fc90b339.html', (req, res) => {
+    res.type('text/html').send('google-site-verification: google34b6b115fc90b339.html');
+  });
+
   app.use((req, res) => res.redirect('/'));
 
   const server = app.listen(PORT, () => {
