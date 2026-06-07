@@ -9,6 +9,7 @@ const { iniciarServidor } = require('./landingpage');
 
 const GRUPO_ID         = process.env.WHATSAPP_GROUP_ID;
 const TESTAR_AGORA     = process.env.TESTAR_AGORA === 'true';
+const BOT_PAUSED       = process.env.BOT_PAUSED === 'true';  // kill-switch: para TODAS as postagens (mantém landing page / GSC no ar)
 const QTD_PRODUTOS     = 5;
 const DELAY_ENTRE_MSGS = 4000;
 const TZ               = 'America/Sao_Paulo';
@@ -272,6 +273,19 @@ async function main() {
   console.log('\n🔑 Validando tokens Instagram...');
   await validarTokensInstagram();
 
+  // v3.40 — check diário de tokens 7h (roda mesmo pausado: útil saber se token expira).
+  new CronJob('0 7 * * *', checkDiarioTokens, null, true, TZ);
+
+  // ⏸️ KILL-SWITCH (v3.42) — para TODAS as postagens, mantém landing page/GSC/token-status no ar.
+  if (BOT_PAUSED) {
+    console.log('\n' + '⏸️ '.repeat(14));
+    console.log('⏸️  BOT_PAUSED=true — postagens DESATIVADAS (WhatsApp + Instagram + Reels).');
+    console.log('⏸️  Landing page, /admin/token-status e verificação do Google seguem no ar.');
+    console.log('⏸️  Reativar: remover a variável BOT_PAUSED no Railway + redeploy.');
+    console.log('⏸️ '.repeat(14) + '\n');
+    return;
+  }
+
   HORARIOS_WHATSAPP.forEach((cron) => new CronJob(cron, cicloWhatsApp, null, true, TZ));
   HORARIOS_IG_BELEZA.forEach((cron) => new CronJob(cron, () => cicloInstagram('beleza'), null, true, TZ));
   HORARIOS_IG_GERAL.forEach((cron) => new CronJob(cron, () => cicloInstagram('geral'), null, true, TZ));
@@ -280,9 +294,6 @@ async function main() {
   HORARIOS_REELS_GERAL.forEach((cron) => new CronJob(cron, () => cicloReels('geral'), null, true, TZ));
 
   new CronJob(HORARIO_HEALTH_CHECK, healthCheck, null, true, TZ);
-
-  // v3.40 — check diário de tokens 7h. Alerta no log se token vai expirar em <10 dias.
-  new CronJob('0 7 * * *', checkDiarioTokens, null, true, TZ);
 
   console.log('\nScheduler ativo (v3.40):');
   console.log('   WhatsApp:         20h (1x/dia, 5 produtos)');
